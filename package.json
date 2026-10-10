@@ -15,7 +15,8 @@
     "bot-ui:test": "tsx scripts/test-bot-ui-integration.ts",
     "trade-manager:test": "tsx scripts/test-trade-manager.ts",
     "range-recovery:test": "tsx scripts/test-range-bot-x-recovery.ts",
-    "analytics:test": "tsx scripts/test-pnl-analytics.ts"
+    "analytics:test": "tsx scripts/test-pnl-analytics.ts",
+    "testnet:test": "tsx scripts/test-testnet-layer.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

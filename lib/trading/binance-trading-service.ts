@@ -40,11 +40,25 @@ export class BinanceTradingService {
       this.transport = config.transport;
     } else {
       const signer = new BinanceSigner();
-      if (signer.hasCredentials()) {
+      const configStatus = signer.getConfigurationStatus();
+
+      const isExplicitEnvConfigured =
+        (process.env.BINANCE_ENVIRONMENT || '').toLowerCase().trim() === 'testnet' ||
+        process.env.BINANCE_TESTNET_TRADING_ENABLED === 'true' ||
+        (process.env.BINANCE_ENVIRONMENT || '').toLowerCase().trim() === 'production' ||
+        process.env.BINANCE_LIVE_TRADING_ENABLED === 'true';
+
+      if (isExplicitEnvConfigured && !configStatus.valid) {
+        // Prevent silent mock substitution when testnet or production trading was explicitly intended
+        throw new Error(
+          `[BinanceTradingService] Configuration Error: ${configStatus.error || 'Invalid environment configuration.'}`
+        );
+      }
+
+      if (configStatus.valid) {
         this.transport = new BinanceTradingClient(signer);
       } else {
-        // Safe default: When no real Binance keys are provided in environment,
-        // use MockBinanceTransport so NO network requests or real trades ever touch Binance.
+        // Safe default: When no trading environment is configured, use MockBinanceTransport
         this.transport = new MockBinanceTransport();
       }
     }
@@ -56,6 +70,10 @@ export class BinanceTradingService {
       BinanceTradingService.instance = new BinanceTradingService();
     }
     return BinanceTradingService.instance;
+  }
+
+  public getTransport(): IBinanceTransport {
+    return this.transport;
   }
 
   /**

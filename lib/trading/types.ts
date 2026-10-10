@@ -220,7 +220,51 @@ export interface OrderVerificationResult {
 }
 
 /**
- * 10. Low-level Transport Interface (allows real HTTP or mock testing without secrets)
+ * 10. Binance Spot Account Balances & Information
+ */
+export interface BinanceAccountBalance {
+  asset: string;
+  free: string;
+  locked: string;
+}
+
+export interface BinanceAccountInformation {
+  makerCommission: number;
+  takerCommission: number;
+  buyerCommission: number;
+  sellerCommission: number;
+  canTrade: boolean;
+  canWithdraw: boolean;
+  canDeposit: boolean;
+  updateTime: number;
+  accountType: string;
+  balances: BinanceAccountBalance[];
+}
+
+/**
+ * 11. Binance Symbol Filters (LOT_SIZE, PRICE_FILTER, MIN_NOTIONAL)
+ */
+export interface BinanceSymbolFilters {
+  symbol: string;
+  minPrice: number;
+  maxPrice: number;
+  tickSize: number;
+  minQty: number;
+  maxQty: number;
+  stepSize: number;
+  minNotional: number;
+}
+
+/**
+ * 12. Server Time Synchronization
+ */
+export interface BinanceServerTimeResponse {
+  serverTime: number;
+  offsetMs?: number;
+}
+
+/**
+ * 13. Low-level Transport Interface (allows real HTTP or mock testing without secrets)
  */
 export interface IBinanceTransport {
   sendOrder(params: {
@@ -245,4 +289,8 @@ export interface IBinanceTransport {
     orderId?: number;
     origClientOrderId?: string;
   }): Promise<BinanceRawOrderResponse>;
+
+  getServerTime?(): Promise<BinanceServerTimeResponse>;
+  getAccountInformation?(): Promise<BinanceAccountInformation>;
+  getSymbolFilters?(symbol: string): Promise<BinanceSymbolFilters | null>;
 }

@@ -7,10 +7,13 @@ import {
   NetworkAmbiguousError,
 } from './binance-trading-client';
 import {
+  BinanceAccountInformation,
   BinanceOrderSide,
   BinanceOrderType,
   BinanceRawOrderResponse,
   BinanceRawQueryOrderResponse,
+  BinanceServerTimeResponse,
+  BinanceSymbolFilters,
   BinanceTimeInForce,
   IBinanceTransport,
 } from './types';
@@ -239,5 +242,45 @@ export class MockBinanceTransport implements IBinanceTransport {
 
     order.status = 'CANCELED';
     return order;
+  }
+
+  public async getServerTime(): Promise<BinanceServerTimeResponse> {
+    return {
+      serverTime: Date.now(),
+      offsetMs: 0,
+    };
+  }
+
+  public async getAccountInformation(): Promise<BinanceAccountInformation> {
+    return {
+      makerCommission: 10,
+      takerCommission: 10,
+      buyerCommission: 0,
+      sellerCommission: 0,
+      canTrade: true,
+      canWithdraw: false,
+      canDeposit: true,
+      updateTime: Date.now(),
+      accountType: 'SPOT',
+      balances: [
+        { asset: 'USDT', free: '10000.00', locked: '0.00' },
+        { asset: 'BTC', free: '0.50', locked: '0.00' },
+        { asset: 'ETH', free: '5.00', locked: '0.00' },
+      ],
+    };
+  }
+
+  public async getSymbolFilters(symbol: string): Promise<BinanceSymbolFilters | null> {
+    const upper = symbol.toUpperCase().trim();
+    return {
+      symbol: upper,
+      minPrice: 0.01,
+      maxPrice: 1000000,
+      tickSize: 0.01,
+      minQty: 0.00001,
+      maxQty: 9000,
+      stepSize: 0.00001,
+      minNotional: 5,
+    };
   }
 }
