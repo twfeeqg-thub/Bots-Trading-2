@@ -16,6 +16,7 @@
 
 import { getSharedBotEngine } from '../lib/engine';
 import { sharedBinanceTradingService } from '../lib/trading';
+import { CentralMarketDataStore } from '../lib/market-data/market-data-store';
 
 let totalTests = 0;
 let passedTests = 0;
@@ -43,6 +44,8 @@ async function runTestSuite() {
   );
 
   const engine = await getSharedBotEngine();
+  const marketStore = CentralMarketDataStore.getInstance();
+  marketStore.updatePrice('BTCUSDT', 65000.0, Date.now());
 
   // Checkpoint 2: Create Bot
   const testBot = await engine.createBot({

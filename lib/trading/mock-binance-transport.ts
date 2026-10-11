@@ -17,6 +17,7 @@ import {
   BinanceTimeInForce,
   IBinanceTransport,
 } from './types';
+import { CentralMarketDataStore, sharedMarketDataStore } from '../market-data/market-data-store';
 
 export type MockExecutionMode =
   | 'FILLED'
@@ -32,9 +33,40 @@ export class MockBinanceTransport implements IBinanceTransport {
   private ordersByClientId: Map<string, BinanceRawOrderResponse> = new Map();
   private ordersById: Map<number, BinanceRawOrderResponse> = new Map();
   private nextOrderId: number = 880001;
+  private marketDataStore: CentralMarketDataStore;
+  private simulatedBalances: Map<string, { free: number; locked: number }> = new Map();
 
-  constructor(defaultMode: MockExecutionMode = 'FILLED') {
+  constructor(
+    defaultMode: MockExecutionMode = 'FILLED',
+    marketDataStore?: CentralMarketDataStore
+  ) {
     this.mode = defaultMode;
+    this.marketDataStore = marketDataStore || sharedMarketDataStore;
+    this.initializeDefaultBalances();
+  }
+
+  private initializeDefaultBalances(): void {
+    this.simulatedBalances.set('USDT', { free: 10000.0, locked: 0.0 });
+    this.simulatedBalances.set('BTC', { free: 0.5, locked: 0.0 });
+    this.simulatedBalances.set('ETH', { free: 5.0, locked: 0.0 });
+  }
+
+  public setMarketDataStore(store: CentralMarketDataStore): void {
+    this.marketDataStore = store;
+  }
+
+  public getMarketDataStore(): CentralMarketDataStore {
+    return this.marketDataStore;
+  }
+
+  public getSimulatedBalance(asset: string): { free: number; locked: number } {
+    const upper = asset.toUpperCase().trim();
+    return this.simulatedBalances.get(upper) || { free: 0, locked: 0 };
+  }
+
+  public setSimulatedBalance(asset: string, free: number, locked: number = 0): void {
+    const upper = asset.toUpperCase().trim();
+    this.simulatedBalances.set(upper, { free, locked });
   }
 
   /**
@@ -55,6 +87,7 @@ export class MockBinanceTransport implements IBinanceTransport {
     this.ordersByClientId.clear();
     this.ordersById.clear();
     this.mode = 'FILLED';
+    this.initializeDefaultBalances();
   }
 
   public async sendOrder(params: {
@@ -104,10 +137,40 @@ export class MockBinanceTransport implements IBinanceTransport {
       );
     }
 
-    // 3. Calculate simulated execution quantities and prices
-    const orderId = this.nextOrderId++;
-    const now = Date.now();
-    const mockRefPrice = params.price || (symbol.includes('BTC') ? 65000 : symbol.includes('ETH') ? 3400 : 150);
+    // 3. Resolve execution price dynamically
+    let mockRefPrice: number | null = null;
+
+    if (params.type === 'MARKET') {
+      // Rule: MARKET orders MUST execute ONLY at a valid, fresh real-time market price.
+      // Rejects execution if fresh market price is absent or stale.
+      const freshPrice = this.marketDataStore.getFreshPrice(symbol);
+      if (!freshPrice || freshPrice <= 0) {
+        throw new BinanceApiError(
+          `Binance Simulation Error: Execution rejected for MARKET order on ${symbol}. No valid fresh market price available in CentralMarketDataStore.`,
+          -2010,
+          400,
+          params.newClientOrderId
+        );
+      }
+      mockRefPrice = freshPrice;
+    } else {
+      // LIMIT or other orders use specified order price or fresh market price
+      if (params.price && params.price > 0) {
+        mockRefPrice = params.price;
+      } else {
+        const freshPrice = this.marketDataStore.getFreshPrice(symbol);
+        if (freshPrice && freshPrice > 0) {
+          mockRefPrice = freshPrice;
+        } else {
+          throw new BinanceApiError(
+            `Binance Simulation Error: Execution rejected for ${params.type} order on ${symbol}. Price must be specified or fresh market price available.`,
+            -1102,
+            400,
+            params.newClientOrderId
+          );
+        }
+      }
+    }
 
     let requestedQty = 0;
     let quoteAmount = 0;
@@ -136,6 +199,32 @@ export class MockBinanceTransport implements IBinanceTransport {
       executedQty = 0;
       cummulativeQuoteQty = 0;
     }
+
+    const baseAsset = symbol.replace(/USDT$|BUSD$|USDC$|FDUSD$/, '');
+    const quoteAsset = symbol.endsWith('USDT') ? 'USDT' : 'USDT';
+
+    // 4. Update simulated balances ledger upon execution
+    if (executedQty > 0) {
+      const quoteBalance = this.getSimulatedBalance(quoteAsset);
+      const baseBalance = this.getSimulatedBalance(baseAsset);
+
+      if (isBuy) {
+        // Buyer spends quote asset, receives base asset (minus 0.1% commission)
+        const quoteSpent = cummulativeQuoteQty;
+        const baseReceived = executedQty * 0.999;
+        this.setSimulatedBalance(quoteAsset, Math.max(0, quoteBalance.free - quoteSpent), quoteBalance.locked);
+        this.setSimulatedBalance(baseAsset, baseBalance.free + baseReceived, baseBalance.locked);
+      } else {
+        // Seller spends base asset, receives quote asset (minus 0.1% commission)
+        const baseSpent = executedQty;
+        const quoteReceived = cummulativeQuoteQty * 0.999;
+        this.setSimulatedBalance(baseAsset, Math.max(0, baseBalance.free - baseSpent), baseBalance.locked);
+        this.setSimulatedBalance(quoteAsset, quoteBalance.free + quoteReceived, quoteBalance.locked);
+      }
+    }
+
+    const orderId = this.nextOrderId++;
+    const now = Date.now();
 
     const formatMockPrecision = (num: number, minDecimals: number = 2, maxDecimals: number = 8): string => {
       if (num === 0) return '0.00';
@@ -252,6 +341,15 @@ export class MockBinanceTransport implements IBinanceTransport {
   }
 
   public async getAccountInformation(): Promise<BinanceAccountInformation> {
+    const balances: Array<{ asset: string; free: string; locked: string }> = [];
+    this.simulatedBalances.forEach((val, asset) => {
+      balances.push({
+        asset,
+        free: val.free.toFixed(8),
+        locked: val.locked.toFixed(8),
+      });
+    });
+
     return {
       makerCommission: 10,
       takerCommission: 10,
@@ -262,11 +360,7 @@ export class MockBinanceTransport implements IBinanceTransport {
       canDeposit: true,
       updateTime: Date.now(),
       accountType: 'SPOT',
-      balances: [
-        { asset: 'USDT', free: '10000.00', locked: '0.00' },
-        { asset: 'BTC', free: '0.50', locked: '0.00' },
-        { asset: 'ETH', free: '5.00', locked: '0.00' },
-      ],
+      balances,
     };
   }
 
