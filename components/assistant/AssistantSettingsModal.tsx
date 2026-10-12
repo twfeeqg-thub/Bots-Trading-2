@@ -8,11 +8,17 @@ import {
   Cpu, 
   ExternalLink, 
   Check, 
-  Info,
   Sparkles,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw,
+  PlusCircle
 } from 'lucide-react';
-import { AIProvider, PROVIDERS_CONFIG, AssistantUserSettings } from './AssistantTypes';
+import { 
+  AIProvider, 
+  PROVIDERS_CONFIG, 
+  AssistantUserSettings, 
+  ProviderModelConfig 
+} from './AssistantTypes';
 
 interface AssistantSettingsModalProps {
   isOpen: boolean;
@@ -32,16 +38,30 @@ export function AssistantSettingsModal({
   const [activeProvider, setActiveProvider] = useState<AIProvider>(settings.activeProvider);
   const [activeModel, setActiveModel] = useState<string>(settings.activeModel);
   const [apiKeys, setApiKeys] = useState<Partial<Record<AIProvider, string>>>({ ...settings.apiKeys });
+  const [dynamicModels, setDynamicModels] = useState<Partial<Record<AIProvider, ProviderModelConfig[]>>>(
+    settings.dynamicModels || {}
+  );
+  const [customModelInput, setCustomModelInput] = useState<string>(settings.customModelInput || '');
+  const [isRefreshingModels, setIsRefreshingModels] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   if (!isOpen) return null;
 
   const currentConfig = PROVIDERS_CONFIG[activeProvider];
+  const hasDynamicList = !!(dynamicModels[activeProvider] && dynamicModels[activeProvider]!.length > 0);
+  const currentModels: ProviderModelConfig[] = hasDynamicList
+    ? dynamicModels[activeProvider]!
+    : currentConfig.models;
 
+  // Change provider without automatic querying
   const handleProviderChange = (provider: AIProvider) => {
     setActiveProvider(provider);
-    const config = PROVIDERS_CONFIG[provider];
-    setActiveModel(config.defaultModel);
+    setRefreshMessage(null);
+    const available = dynamicModels[provider] && dynamicModels[provider]!.length > 0
+      ? dynamicModels[provider]!
+      : PROVIDERS_CONFIG[provider].models;
+    setActiveModel(available[0]?.id || PROVIDERS_CONFIG[provider].defaultModel);
   };
 
   const handleKeyChange = (val: string) => {
@@ -51,11 +71,81 @@ export function AssistantSettingsModal({
     }));
   };
 
+  // Explicit user click ONLY (no automatic querying)
+  const handleFetchAvailableModels = async () => {
+    setIsRefreshingModels(true);
+    setRefreshMessage(null);
+
+    try {
+      const activeKey = apiKeys[activeProvider];
+      const res = await fetch('/api/assistant/models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: activeProvider,
+          customApiKey: activeKey,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setRefreshMessage({
+          type: 'error',
+          text: data.error || 'فشل الاستعلام عن النماذج المتاحة من المزود.',
+        });
+        return;
+      }
+
+      if (data.models && Array.isArray(data.models) && data.models.length > 0) {
+        const fetchedModels: ProviderModelConfig[] = data.models;
+        setDynamicModels((prev) => ({
+          ...prev,
+          [activeProvider]: fetchedModels,
+        }));
+        
+        // Ensure active model is selected or fallback
+        const exists = fetchedModels.some((m) => m.id === activeModel);
+        if (!exists) {
+          setActiveModel(fetchedModels[0].id);
+        }
+
+        setRefreshMessage({
+          type: 'success',
+          text: `تم استرداد ${fetchedModels.length} نموذج متاح بنجاح من ${currentConfig.name}!`,
+        });
+      } else {
+        setRefreshMessage({
+          type: 'error',
+          text: 'لم يُرجع المزود أي نماذج صالحة للاستخدام.',
+        });
+      }
+    } catch {
+      setRefreshMessage({
+        type: 'error',
+        text: 'تعذر الاتصال بـ API المزود. يرجى التحقق من اتصالك بالإنترنت أو صحة المفتاح.',
+      });
+    } finally {
+      setIsRefreshingModels(false);
+    }
+  };
+
+  const handleApplyCustomModel = () => {
+    const trimmed = customModelInput.trim();
+    if (!trimmed) return;
+    setActiveModel(trimmed);
+    setRefreshMessage({
+      type: 'success',
+      text: `تم تعيين النموذج المخصص: "${trimmed}"`,
+    });
+  };
+
   const handleSave = () => {
     onUpdateSettings({
       activeProvider,
       activeModel,
       apiKeys,
+      dynamicModels,
+      customModelInput,
     });
     setSaveSuccess(true);
     setTimeout(() => {
@@ -67,7 +157,7 @@ export function AssistantSettingsModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div
-        className={`w-full max-w-lg rounded-2xl border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] ${
+        className={`w-full max-w-lg rounded-2xl border shadow-2xl overflow-hidden flex flex-col max-h-[92vh] ${
           isLight
             ? 'bg-white border-slate-200 text-slate-900'
             : 'bg-slate-900 border-slate-800 text-slate-100'
@@ -86,7 +176,7 @@ export function AssistantSettingsModal({
             <div>
               <h3 className="text-sm font-bold">إعدادات المساعد الذكي والمزودين</h3>
               <p className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                اختر مزود الذكاء الاصطناعي ونموذج التحليل
+                اختر المزود، حدّث النماذج المتاحة حياً، أو أدخل نموذجًا مخصصًا
               </p>
             </div>
           </div>
@@ -126,6 +216,7 @@ export function AssistantSettingsModal({
                 const p = PROVIDERS_CONFIG[pid];
                 const isSelected = activeProvider === pid;
                 const hasKey = !!apiKeys[pid];
+                const count = dynamicModels[pid]?.length || p.models.length;
                 return (
                   <button
                     key={pid}
@@ -150,50 +241,10 @@ export function AssistantSettingsModal({
                       )}
                     </div>
                     <div className="flex items-center justify-between text-[10px] text-slate-500">
-                      <span>{p.models.length} نماذج</span>
-                      {hasKey && <span className="text-emerald-500">✓ مفتاح متوفر</span>}
+                      <span>{count} نماذج</span>
+                      {hasKey && <span className="text-emerald-500 font-semibold">✓ مفتاح متوفر</span>}
                     </div>
                   </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Model Selection */}
-          <div>
-            <label className="block text-xs font-semibold mb-2">
-              نموذج التحليل لـ ({currentConfig.name}):
-            </label>
-            <div className="space-y-1.5">
-              {currentConfig.models.map((m) => {
-                const isModelSelected = activeModel === m.id;
-                return (
-                  <div
-                    key={m.id}
-                    onClick={() => setActiveModel(m.id)}
-                    className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between ${
-                      isModelSelected
-                        ? isLight
-                          ? 'border-emerald-600 bg-emerald-50/80 text-emerald-950'
-                          : 'border-emerald-500 bg-emerald-950/30 text-emerald-200'
-                        : isLight
-                        ? 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                        : 'border-slate-800 hover:bg-slate-800/40 text-slate-300'
-                    }`}
-                  >
-                    <div>
-                      <div className="font-semibold text-xs flex items-center gap-1.5">
-                        <span>{m.name}</span>
-                        {m.id === currentConfig.defaultModel && (
-                          <span className="text-[9px] text-slate-400">(الموصى به)</span>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-slate-500 mt-0.5">{m.description}</p>
-                    </div>
-                    {isModelSelected && (
-                      <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                    )}
-                  </div>
                 );
               })}
             </div>
@@ -229,9 +280,137 @@ export function AssistantSettingsModal({
             />
             <p className="text-[10px] text-slate-500 mt-1">
               {currentConfig.requiresKey
-                ? 'مطلوب إدخال المفتاح لتشغيل هذا المزود.'
-                : 'اختياري لـ Gemini: إذا لم تدخله، سيعمل المساعد بالمفتاح الافتراضي للنظام.'}
+                ? 'مطلوب إدخال المفتاح لتشغيل واستعلام نماذج هذا المزود.'
+                : 'اختياري لـ Gemini: إذا لم تدخله، سيعمل المساعد بالمفتاح الافتراضي المدمج.'}
             </p>
+          </div>
+
+          {/* Dynamic Model Discovery & Model Selection */}
+          <div className="space-y-2.5 pt-1 border-t border-slate-800/40">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs font-semibold">
+                  نماذج التحليل لـ ({currentConfig.name}):
+                </label>
+                {hasDynamicList && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-mono">
+                    مستعلم حياً من المزود
+                  </span>
+                )}
+              </div>
+
+              {/* Explicit User Refresh Button */}
+              <button
+                type="button"
+                onClick={handleFetchAvailableModels}
+                disabled={isRefreshingModels}
+                className="px-3 py-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 disabled:opacity-50 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-all shadow-xs"
+                title="استعلام حي عن قائمة النماذج المتاحة من خوادم المزود حالياً"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingModels ? 'animate-spin' : ''}`} />
+                <span>{isRefreshingModels ? 'جاري الاستعلام عن النماذج...' : 'تحديث النماذج المتاحة من المزود 🔄'}</span>
+              </button>
+            </div>
+
+            {/* Refresh Feedback Message */}
+            {refreshMessage && (
+              <div
+                className={`p-2.5 rounded-xl border text-xs flex items-start gap-2 animate-in fade-in duration-200 ${
+                  refreshMessage.type === 'success'
+                    ? isLight
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                      : 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
+                    : isLight
+                    ? 'bg-rose-50 border-rose-200 text-rose-900'
+                    : 'bg-rose-950/40 border-rose-500/40 text-rose-300'
+                }`}
+              >
+                {refreshMessage.type === 'success' ? (
+                  <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                )}
+                <span className="leading-relaxed">{refreshMessage.text}</span>
+              </div>
+            )}
+
+            {/* Models List */}
+            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+              {currentModels.map((m) => {
+                const isModelSelected = activeModel === m.id;
+                return (
+                  <div
+                    key={m.id}
+                    onClick={() => setActiveModel(m.id)}
+                    className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between ${
+                      isModelSelected
+                        ? isLight
+                          ? 'border-emerald-600 bg-emerald-50/80 text-emerald-950'
+                          : 'border-emerald-500 bg-emerald-950/30 text-emerald-200'
+                        : isLight
+                        ? 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                        : 'border-slate-800 hover:bg-slate-800/40 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0 pr-1">
+                      <div className="font-semibold text-xs flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono text-emerald-400">{m.name}</span>
+                        {m.id === currentConfig.defaultModel && (
+                          <span className="text-[9px] text-slate-400">(الموصى به)</span>
+                        )}
+                        {m.isDynamic && (
+                          <span className="text-[9px] text-sky-400 bg-sky-500/10 px-1 rounded">حي</span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-2">{m.description}</p>
+                    </div>
+                    {isModelSelected && (
+                      <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Custom Model Manual Entry Section */}
+            <div className={`p-3 rounded-xl border space-y-2 mt-2 ${
+              isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/40 border-slate-800/80'
+            }`}>
+              <div className="flex items-center justify-between text-[11px]">
+                <label className="font-semibold flex items-center gap-1 text-slate-300">
+                  <PlusCircle className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>إدخال نموذج مخصص يدويًا (Custom Model ID):</span>
+                </label>
+                <span className="text-[10px] text-slate-500">لأي نموذج جديد غير مدرج</span>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="مثال: llama-3.3-70b-versatile أو deepseek-chat"
+                  value={customModelInput}
+                  onChange={(e) => setCustomModelInput(e.target.value)}
+                  className={`flex-1 px-2.5 py-1.5 rounded-lg border font-mono text-xs transition-colors focus:outline-hidden ${
+                    isLight
+                      ? 'bg-white border-slate-300 text-slate-900'
+                      : 'bg-slate-900 border-slate-700 text-slate-100'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyCustomModel}
+                  disabled={!customModelInput.trim()}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-medium text-xs transition-colors shrink-0"
+                >
+                  اعتماد
+                </button>
+              </div>
+              {activeModel && (
+                <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                  <span>النموذج النشط حاليًا:</span>
+                  <span className="font-mono text-emerald-400 font-semibold">{activeModel}</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

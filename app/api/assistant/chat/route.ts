@@ -3,7 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 
 interface ChatRequestPayload {
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
-  provider: 'gemini' | 'openai' | 'anthropic' | 'groq' | 'deepseek';
+  provider: 'gemini' | 'openai' | 'anthropic' | 'groq' | 'deepseek' | 'openrouter' | 'mistral';
   model?: string;
   customApiKey?: string;
   marketContext?: any;
@@ -101,7 +101,23 @@ export async function POST(req: NextRequest) {
         });
       } catch (err: any) {
         const errMsg = err?.message || '';
-        const status = err?.status || 500;
+        const status = err?.status || (err?.code ? Number(err.code) : 500);
+
+        if (
+          status === 404 ||
+          errMsg.includes('not found') ||
+          errMsg.includes('NotFound') ||
+          errMsg.includes('is not supported for this API version') ||
+          errMsg.includes('models/')
+        ) {
+          return NextResponse.json(
+            {
+              errorType: 'model_not_found',
+              error: `النموذج "${selectedModel}" غير متاح لدى Gemini حاليًا. يرجى الضغط على «تحديث النماذج المتاحة من المزود 🔄» في الإعدادات أو اختيار نموذج آخر مثل gemini-2.5-flash.`,
+            },
+            { status: 404 }
+          );
+        }
         if (status === 429 || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota')) {
           return NextResponse.json(
             {
@@ -111,11 +127,11 @@ export async function POST(req: NextRequest) {
             { status: 429 }
           );
         }
-        if (status === 400 || status === 401 || errMsg.includes('API key not valid')) {
+        if (status === 400 || status === 401 || errMsg.includes('API key not valid') || errMsg.includes('API_KEY_INVALID')) {
           return NextResponse.json(
             {
               errorType: 'invalid_key',
-              error: 'مفتاح Gemini API غير صالح أو انتهت صلاحيته.',
+              error: 'مفتاح Gemini API غير صالح أو غير مصرح له.',
             },
             { status: 401 }
           );
@@ -155,7 +171,19 @@ export async function POST(req: NextRequest) {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        if (res.status === 429 || errJson?.error?.code === 'insufficient_quota') {
+        const errCode = errJson?.error?.code;
+        const errMsg = errJson?.error?.message || '';
+
+        if (res.status === 404 || errCode === 'model_not_found' || errMsg.includes('does not exist')) {
+          return NextResponse.json(
+            {
+              errorType: 'model_not_found',
+              error: `النموذج "${selectedModel}" غير موجود لدى OpenAI (model_not_found). يمكنك استخدام زر «تحديث النماذج المتاحة من المزود 🔄» لجلب النماذج المتاحة.`,
+            },
+            { status: 404 }
+          );
+        }
+        if (res.status === 429 || errCode === 'insufficient_quota') {
           return NextResponse.json(
             {
               errorType: 'quota_exceeded',
@@ -174,7 +202,7 @@ export async function POST(req: NextRequest) {
           );
         }
         return NextResponse.json(
-          { error: errJson?.error?.message || 'فشل الاتصال بـ OpenAI' },
+          { error: errMsg || 'فشل الاتصال بـ OpenAI' },
           { status: res.status }
         );
       }
@@ -198,7 +226,6 @@ export async function POST(req: NextRequest) {
       }
 
       const selectedModel = model || 'claude-3-5-haiku-20241022';
-      // Convert messages to Claude structure (system in top-level param)
       const claudeMessages = formattedMessages
         .filter((m) => m.role !== 'system')
         .map((m) => ({
@@ -223,6 +250,18 @@ export async function POST(req: NextRequest) {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
+        const errType = errJson?.error?.type;
+        const errMsg = errJson?.error?.message || '';
+
+        if (res.status === 404 || errType === 'not_found_error' || errMsg.includes('model')) {
+          return NextResponse.json(
+            {
+              errorType: 'model_not_found',
+              error: `النموذج "${selectedModel}" غير متاح لدى Anthropic Claude. يمكنك تحديث النماذج أو اختيار نموذج متاح.`,
+            },
+            { status: 404 }
+          );
+        }
         if (res.status === 429) {
           return NextResponse.json(
             {
@@ -242,7 +281,7 @@ export async function POST(req: NextRequest) {
           );
         }
         return NextResponse.json(
-          { error: errJson?.error?.message || 'فشل الاتصال بـ Anthropic' },
+          { error: errMsg || 'فشل الاتصال بـ Anthropic' },
           { status: res.status }
         );
       }
@@ -283,11 +322,31 @@ export async function POST(req: NextRequest) {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
+        const errCode = errJson?.error?.code;
+        const errMsg = errJson?.error?.message || '';
+
+        // Exact Groq model_not_found diagnosis
+        if (
+          res.status === 404 ||
+          errCode === 'model_not_found' ||
+          errMsg.toLowerCase().includes('model_not_found') ||
+          errMsg.toLowerCase().includes('model `') ||
+          errMsg.toLowerCase().includes('model does not exist') ||
+          errMsg.toLowerCase().includes('decommissioned')
+        ) {
+          return NextResponse.json(
+            {
+              errorType: 'model_not_found',
+              error: `النموذج "${selectedModel}" غير متوفر لدى Groq (model_not_found). يرجى فتح الإعدادات والضغط على زر «تحديث النماذج المتاحة من المزود 🔄» لاختيار أحد النماذج النشطة حاليًا.`,
+            },
+            { status: 404 }
+          );
+        }
         if (res.status === 429) {
           return NextResponse.json(
             {
               errorType: 'quota_exceeded',
-              error: 'تم تجاوز معدل طلبات Groq المجانية. يمكنك التبديل لمزود آخر.',
+              error: 'تم تجاوز معدل طلبات Groq المجانية (Rate Limit). يمكنك التبديل لمزود آخر أو الانتظار دقيقة واحدة.',
             },
             { status: 429 }
           );
@@ -296,13 +355,13 @@ export async function POST(req: NextRequest) {
           return NextResponse.json(
             {
               errorType: 'invalid_key',
-              error: 'مفتاح Groq API غير صالح.',
+              error: 'مفتاح Groq API غير صالح أو غير مصرح له.',
             },
             { status: 401 }
           );
         }
         return NextResponse.json(
-          { error: errJson?.error?.message || 'فشل الاتصال بـ Groq' },
+          { error: errMsg || 'فشل الاتصال بـ Groq' },
           { status: res.status }
         );
       }
@@ -343,7 +402,19 @@ export async function POST(req: NextRequest) {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        if (res.status === 429 || errJson?.error?.code === 'insufficient_quota') {
+        const errCode = errJson?.error?.code;
+        const errMsg = errJson?.error?.message || '';
+
+        if (res.status === 404 || errCode === 'model_not_found' || errMsg.includes('model')) {
+          return NextResponse.json(
+            {
+              errorType: 'model_not_found',
+              error: `النموذج "${selectedModel}" غير متاح لدى DeepSeek. اضغط على «تحديث النماذج المتاحة من المزود 🔄» في الإعدادات لاختيار نموذج نشط.`,
+            },
+            { status: 404 }
+          );
+        }
+        if (res.status === 429 || errCode === 'insufficient_quota') {
           return NextResponse.json(
             {
               errorType: 'quota_exceeded',
@@ -362,7 +433,7 @@ export async function POST(req: NextRequest) {
           );
         }
         return NextResponse.json(
-          { error: errJson?.error?.message || 'فشل الاتصال بـ DeepSeek' },
+          { error: errMsg || 'فشل الاتصال بـ DeepSeek' },
           { status: res.status }
         );
       }
@@ -370,6 +441,161 @@ export async function POST(req: NextRequest) {
       const data = await res.json();
       const reply = data.choices?.[0]?.message?.content || '';
       return NextResponse.json({ reply, provider: 'deepseek', model: selectedModel });
+    }
+
+    // 6. OPENROUTER PROVIDER
+    if (provider === 'openrouter') {
+      const apiKey = customApiKey || process.env.OPENROUTER_API_KEY;
+      if (!apiKey) {
+        return NextResponse.json(
+          {
+            errorType: 'invalid_key',
+            error: 'يرجى إدخال مفتاح OpenRouter API في إعدادات المساعد.',
+          },
+          { status: 401 }
+        );
+      }
+
+      const selectedModel = model || 'deepseek/deepseek-r1:free';
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+          'HTTP-Referer': 'https://project-q.app',
+          'X-Title': 'Project Q Assistant',
+        },
+        body: JSON.stringify({
+          model: selectedModel,
+          messages: [
+            { role: 'system', content: SYSTEM_INSTRUCTION },
+            ...formattedMessages,
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        const errCode = errJson?.error?.code;
+        const errMsg = errJson?.error?.message || '';
+
+        if (
+          res.status === 404 ||
+          errCode === 'model_not_found' ||
+          errMsg.includes('model') ||
+          errMsg.includes('not found') ||
+          errMsg.includes('No available endpoints')
+        ) {
+          return NextResponse.json(
+            {
+              errorType: 'model_not_found',
+              error: `النموذج "${selectedModel}" غير متاح لدى OpenRouter حاليًا. يرجى الضغط على «تحديث النماذج المتاحة من المزود 🔄» في الإعدادات أو اختيار نموذج آخر مثل deepseek/deepseek-r1:free.`,
+            },
+            { status: 404 }
+          );
+        }
+        if (res.status === 429 || errCode === 'insufficient_quota' || errMsg.includes('rate-limited') || errMsg.includes('credit')) {
+          return NextResponse.json(
+            {
+              errorType: 'quota_exceeded',
+              error: 'تم تجاوز حد الطلبات أو نفاد الرصيد المجاني في OpenRouter. يمكنك التبديل لمزود أو نموذج مجاني آخر.',
+            },
+            { status: 429 }
+          );
+        }
+        if (res.status === 401) {
+          return NextResponse.json(
+            {
+              errorType: 'invalid_key',
+              error: 'مفتاح OpenRouter API غير صالح أو غير مصرح له.',
+            },
+            { status: 401 }
+          );
+        }
+        return NextResponse.json(
+          { error: errMsg || 'فشل الاتصال بـ OpenRouter' },
+          { status: res.status }
+        );
+      }
+
+      const data = await res.json();
+      const reply = data.choices?.[0]?.message?.content || '';
+      return NextResponse.json({ reply, provider: 'openrouter', model: selectedModel });
+    }
+
+    // 7. MISTRAL AI PROVIDER
+    if (provider === 'mistral') {
+      const apiKey = customApiKey || process.env.MISTRAL_API_KEY;
+      if (!apiKey) {
+        return NextResponse.json(
+          {
+            errorType: 'invalid_key',
+            error: 'يرجى إدخال مفتاح Mistral API في إعدادات المساعد.',
+          },
+          { status: 401 }
+        );
+      }
+
+      const selectedModel = model || 'mistral-small-latest';
+      const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: selectedModel,
+          messages: [
+            { role: 'system', content: SYSTEM_INSTRUCTION },
+            ...formattedMessages,
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        const errMsg = errJson?.message || errJson?.error?.message || '';
+
+        if (
+          res.status === 404 ||
+          errMsg.includes('model') ||
+          errMsg.includes('not found')
+        ) {
+          return NextResponse.json(
+            {
+              errorType: 'model_not_found',
+              error: `النموذج "${selectedModel}" غير متاح لدى Mistral AI حاليًا. اضغط على «تحديث النماذج المتاحة من المزود 🔄» في الإعدادات للاختيار من النماذج المتاحة.`,
+            },
+            { status: 404 }
+          );
+        }
+        if (res.status === 429 || errMsg.includes('usage') || errMsg.includes('capacity')) {
+          return NextResponse.json(
+            {
+              errorType: 'quota_exceeded',
+              error: 'تم تجاوز حصة أو سعة الاستخدام لـ Mistral AI.',
+            },
+            { status: 429 }
+          );
+        }
+        if (res.status === 401) {
+          return NextResponse.json(
+            {
+              errorType: 'invalid_key',
+              error: 'مفتاح Mistral API غير صالح.',
+            },
+            { status: 401 }
+          );
+        }
+        return NextResponse.json(
+          { error: errMsg || 'فشل الاتصال بـ Mistral AI' },
+          { status: res.status }
+        );
+      }
+
+      const data = await res.json();
+      const reply = data.choices?.[0]?.message?.content || '';
+      return NextResponse.json({ reply, provider: 'mistral', model: selectedModel });
     }
 
     return NextResponse.json({ error: `مزود غير مدعوم: ${provider}` }, { status: 400 });

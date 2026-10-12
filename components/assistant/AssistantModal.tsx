@@ -258,13 +258,16 @@ export function AssistantModal({
     }
   };
 
-  // Quick switch provider on quota exhaustion
+  // Quick switch provider on error or user request
   const handleQuickSwitchProvider = (newProvider: AIProvider) => {
     const config = PROVIDERS_CONFIG[newProvider];
+    const available = settings.dynamicModels?.[newProvider] && settings.dynamicModels[newProvider]!.length > 0
+      ? settings.dynamicModels[newProvider]!
+      : config.models;
     setSettings((prev) => ({
       ...prev,
       activeProvider: newProvider,
-      activeModel: config.defaultModel,
+      activeModel: available[0]?.id || config.defaultModel,
     }));
   };
 
@@ -650,7 +653,7 @@ export function AssistantModal({
                       </div>
                     )}
 
-                    {/* Error Banner with 1-Click Provider Switch */}
+                    {/* Error Banner with 1-Click Provider Switch & Settings */}
                     {errorType && (
                       <div className={`mt-2 p-2.5 rounded-xl border text-xs space-y-2 ${
                         isLight ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-rose-950/30 border-rose-500/30 text-rose-200'
@@ -658,36 +661,40 @@ export function AssistantModal({
                         <div className="flex items-center gap-1.5 font-semibold text-rose-500">
                           <AlertCircle className="w-4 h-4 shrink-0" />
                           <span>
-                            {errorType === 'quota_exceeded'
-                              ? 'نفدت الحصة المجانية لهذا النموذج'
+                            {errorType === 'model_not_found'
+                              ? 'النموذج غير متوفر لدى المزود (Model Not Found)'
+                              : errorType === 'quota_exceeded'
+                              ? 'نفدت الحصة المجانية لهذا النموذج (Rate Limit / Quota)'
                               : errorType === 'invalid_key'
                               ? 'مفتاح API غير صالح أو غير مدخل'
                               : 'خطأ في الاتصال'}
                           </span>
                         </div>
                         <p className="text-[10px] text-slate-400">
-                          يمكنك التبديل الفوري لمزود آخر مجاني أو إدخال مفتاح في الإعدادات:
+                          {errorType === 'model_not_found'
+                            ? 'اسم النموذج المحدد قديم أو أوقفه المزود. يمكنك فتح الإعدادات والضغط على «تحديث النماذج المتاحة من المزود 🔄» لاختيار أحد النماذج المعتمدة حاليًا:'
+                            : 'يمكنك التبديل الفوري لمزود آخر أو فتح الإعدادات لتعديل المفاتيح والنماذج:'}
                         </p>
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                          {(['gemini', 'groq', 'openai', 'deepseek'] as AIProvider[])
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setIsSettingsOpen(true)}
+                            className="px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-semibold flex items-center gap-1 transition-colors"
+                          >
+                            <span>فتح الإعدادات لتحديث النماذج 🔄</span>
+                          </button>
+                          {(Object.keys(PROVIDERS_CONFIG) as AIProvider[])
                             .filter((p) => p !== settings.activeProvider)
                             .map((p) => (
                               <button
                                 key={p}
                                 type="button"
                                 onClick={() => handleQuickSwitchProvider(p)}
-                                className="px-2 py-1 rounded-md bg-emerald-600/80 hover:bg-emerald-600 text-white text-[10px] font-medium transition-colors"
+                                className="px-2 py-1 rounded-md border border-slate-600 hover:bg-slate-700 text-slate-200 text-[10px] font-medium transition-colors"
                               >
                                 التبديل إلى {PROVIDERS_CONFIG[p].name}
                               </button>
                             ))}
-                          <button
-                            type="button"
-                            onClick={() => setIsSettingsOpen(true)}
-                            className="px-2 py-1 rounded-md border border-slate-600 hover:bg-slate-700 text-[10px] font-medium text-slate-200"
-                          >
-                            فتح الإعدادات
-                          </button>
                         </div>
                       </div>
                     )}

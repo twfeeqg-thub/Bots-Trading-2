@@ -1,12 +1,20 @@
 // Project Q — Smart Assistant Types & Contracts
 
-export type AIProvider = 'gemini' | 'openai' | 'anthropic' | 'groq' | 'deepseek';
+export type AIProvider = 'gemini' | 'openai' | 'anthropic' | 'groq' | 'deepseek' | 'openrouter' | 'mistral';
+
+export type AssistantErrorType =
+  | 'quota_exceeded'
+  | 'invalid_key'
+  | 'model_not_found'
+  | 'rate_limit'
+  | 'network_error';
 
 export interface ProviderModelConfig {
   id: string;
   name: string;
   contextWindow?: string;
   description: string;
+  isDynamic?: boolean;
 }
 
 export interface ProviderInfo {
@@ -26,14 +34,57 @@ export const PROVIDERS_CONFIG: Record<AIProvider, ProviderInfo> = {
     name: 'Google Gemini',
     defaultModel: 'gemini-2.5-flash',
     models: [
-      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'أداء سريع وذكي ومثالي للتحليل الفني والأسواق' },
-      { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro Preview', description: 'نموذج تفكير عميق للمقارنات المعقدة' },
-      { id: 'gemini-flash-latest', name: 'Gemini Flash Latest', description: 'أحدث إصدار مستقر للتحليل الفوري' },
+      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'النموذج الافتراضي المتوازن وفائق السرعة للتحليل الفني' },
+      { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: 'نموذج تفكير واستنتاج عميق للحسابات والتقارير الشاملة' },
+      { id: 'gemini-flash-latest', name: 'Gemini Flash Latest', description: 'أحدث نسخة مستقرة من عائلة فلاش' },
     ],
     keyPlaceholder: 'AIzaSy... (اختياري، يتوفر مفتاح افتراضي)',
     docsUrl: 'https://aistudio.google.com/app/apikey',
     hasFreeTier: true,
     requiresKey: false,
+  },
+  groq: {
+    id: 'groq',
+    name: 'Groq (Llama / Mixtral)',
+    defaultModel: 'llama-3.3-70b-versatile',
+    models: [
+      { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B Versatile', description: 'استجابة فائقة السرعة مع قدرات تحليل عالية' },
+      { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant', description: 'أسرع نموذج للإجابات الفورية خفيفة الحجم' },
+    ],
+    keyPlaceholder: 'gsk_...',
+    docsUrl: 'https://console.groq.com/keys',
+    hasFreeTier: true,
+    requiresKey: true,
+  },
+  openrouter: {
+    id: 'openrouter',
+    name: 'OpenRouter (نماذج مجانية)',
+    defaultModel: 'deepseek/deepseek-r1:free',
+    models: [
+      { id: 'deepseek/deepseek-r1:free', name: 'DeepSeek R1 (Free)', description: 'نموذج التفكير والاستنتاج الرياضي والمنطقي مجاناً' },
+      { id: 'meta-llama/llama-3.3-70b-instruct:free', name: 'Llama 3.3 70B (Free)', description: 'أقوى نموذج مفتوح المصدر مجاني فائق الذكاء' },
+      { id: 'qwen/qwen-2.5-72b-instruct:free', name: 'Qwen 2.5 72B (Free)', description: 'دقة عالية جداً في الحسابات واللغة العربية' },
+      { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash Exp (Free)', description: 'سرعة استجابة هائلة بدون تكلفة' },
+    ],
+    keyPlaceholder: 'sk-or-v1-...',
+    docsUrl: 'https://openrouter.ai/keys',
+    hasFreeTier: true,
+    requiresKey: true,
+  },
+  mistral: {
+    id: 'mistral',
+    name: 'Mistral AI',
+    defaultModel: 'mistral-small-latest',
+    models: [
+      { id: 'mistral-small-latest', name: 'Mistral Small (Latest)', description: 'سريع واقتصادي ومناسب للتحليلات اليومية' },
+      { id: 'open-mistral-nemo', name: 'Mistral NeMo (Free/Exp)', description: 'نموذج خفيف متعدد اللغات' },
+      { id: 'codestral-latest', name: 'Codestral (Latest)', description: 'تفكير برمجي وحسابي دقيق' },
+      { id: 'mistral-large-latest', name: 'Mistral Large (Latest)', description: 'النموذج الأكثر قوة وكفاءة استنتاجية' },
+    ],
+    keyPlaceholder: 'sk-...',
+    docsUrl: 'https://console.mistral.ai/api-keys/',
+    hasFreeTier: true,
+    requiresKey: true,
   },
   openai: {
     id: 'openai',
@@ -61,19 +112,6 @@ export const PROVIDERS_CONFIG: Record<AIProvider, ProviderInfo> = {
     hasFreeTier: false,
     requiresKey: true,
   },
-  groq: {
-    id: 'groq',
-    name: 'Groq (Llama / Mixtral)',
-    defaultModel: 'llama-3.3-70b-versatile',
-    models: [
-      { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B Versatile', description: 'استجابة فائقة السرعة مع قدرات تحليل عالية' },
-      { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant', description: 'أسرع نموذج للإجابات الفورية' },
-    ],
-    keyPlaceholder: 'gsk_...',
-    docsUrl: 'https://console.groq.com/keys',
-    hasFreeTier: true,
-    requiresKey: true,
-  },
   deepseek: {
     id: 'deepseek',
     name: 'DeepSeek',
@@ -99,7 +137,7 @@ export interface ChatMessage {
   metadata?: {
     technicalAnalysis?: CoinTechnicalAnalysis;
     newsArticles?: NewsArticle[];
-    errorType?: 'quota_exceeded' | 'invalid_key' | 'rate_limit' | 'network_error';
+    errorType?: AssistantErrorType;
   };
 }
 
@@ -140,4 +178,8 @@ export interface AssistantUserSettings {
   activeModel: string;
   // In-Memory only keys dictionary (never saved to localStorage)
   apiKeys: Partial<Record<AIProvider, string>>;
+  // In-Memory cache of dynamically discovered models fetched by manual user request
+  dynamicModels?: Partial<Record<AIProvider, ProviderModelConfig[]>>;
+  // User entered custom model id (if any)
+  customModelInput?: string;
 }
