@@ -50,9 +50,20 @@ export function AssistantSettingsModal({
 
   const currentConfig = PROVIDERS_CONFIG[activeProvider];
   const hasDynamicList = !!(dynamicModels[activeProvider] && dynamicModels[activeProvider]!.length > 0);
-  const currentModels: ProviderModelConfig[] = hasDynamicList
+  const rawModels: ProviderModelConfig[] = hasDynamicList
     ? dynamicModels[activeProvider]!
     : currentConfig.models;
+
+  // Highlight and sort free models to top for OpenRouter
+  const currentModels: ProviderModelConfig[] = [...rawModels].sort((a, b) => {
+    if (activeProvider === 'openrouter') {
+      const aFree = !!(a.isFree || a.id.endsWith(':free') || a.name.toLowerCase().includes('free') || a.name.includes('مجاني'));
+      const bFree = !!(b.isFree || b.id.endsWith(':free') || b.name.toLowerCase().includes('free') || b.name.includes('مجاني'));
+      if (aFree && !bFree) return -1;
+      if (!aFree && bFree) return 1;
+    }
+    return 0;
+  });
 
   // Change provider without automatic querying
   const handleProviderChange = (provider: AIProvider) => {
@@ -355,6 +366,12 @@ export function AssistantSettingsModal({
                     <div className="flex-1 min-w-0 pr-1">
                       <div className="font-semibold text-xs flex items-center gap-1.5 flex-wrap">
                         <span className="font-mono text-emerald-400">{m.name}</span>
+                        {(m.isFree || m.id.endsWith(':free') || m.name.toLowerCase().includes('free') || m.name.includes('مجاني')) && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center gap-1 shadow-xs">
+                            <Sparkles className="w-2.5 h-2.5 text-emerald-400" />
+                            <span>مجاني / Free</span>
+                          </span>
+                        )}
                         {m.id === currentConfig.defaultModel && (
                           <span className="text-[9px] text-slate-400">(الموصى به)</span>
                         )}

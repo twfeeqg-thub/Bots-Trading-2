@@ -317,6 +317,7 @@ export async function POST(req: NextRequest) {
             description: m.description ? m.description.slice(0, 120) + '...' : `نموذج متاح عبر OpenRouter${isFree ? ' (فئة مجانية)' : ''}`,
             contextWindow: m.context_length ? `${m.context_length} رمز` : undefined,
             isDynamic: true,
+            isFree,
           };
         });
 

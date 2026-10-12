@@ -8,6 +8,15 @@ interface ChatRequestPayload {
   customApiKey?: string;
   marketContext?: any;
   newsContext?: any[];
+  attachments?: Array<{
+    id: string;
+    type: 'image' | 'file' | 'text' | 'link';
+    name: string;
+    url?: string;
+    mimeType?: string;
+    size?: number;
+    content?: string;
+  }>;
 }
 
 const SYSTEM_INSTRUCTION = `أنت المساعد الذكي المستقل لتحليل العملات والأسواق في تطبيق «بوت(٢) مراقبة صعود العملات - مشروع Q».
@@ -22,7 +31,7 @@ const SYSTEM_INSTRUCTION = `أنت المساعد الذكي المستقل لت
 export async function POST(req: NextRequest) {
   try {
     const body: ChatRequestPayload = await req.json();
-    const { messages, provider = 'gemini', model, customApiKey, marketContext, newsContext } = body;
+    const { messages, provider = 'gemini', model, customApiKey, marketContext, newsContext, attachments } = body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: 'قائمة الرسائل فارغة' }, { status: 400 });
@@ -49,6 +58,28 @@ export async function POST(req: NextRequest) {
       contextPrompt += `\n[أحدث أخبار العملات والأسواق المجمعة من خلاصات الأخبار]:\n`;
       newsContext.slice(0, 5).forEach((item, idx) => {
         contextPrompt += `${idx + 1}. "${item.title}" - المصدر: ${item.source} (${item.publishedAt}) | الرابط: ${item.link}\n`;
+      });
+    }
+
+    // Process attachments context
+    if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+      contextPrompt += `\n[مرفقات مرسلة من المستخدم مع هذه الرسالة]:\n`;
+      attachments.forEach((att, idx) => {
+        if (att.type === 'file') {
+          contextPrompt += `- مرفق ملف (${idx + 1}): "${att.name}"${att.size ? ` (${(att.size / 1024).toFixed(1)} KB)` : ''}\n`;
+          if (att.content) {
+            contextPrompt += `محتوى الملف:\n"""\n${att.content.slice(0, 8000)}\n"""\n`;
+          }
+        } else if (att.type === 'link') {
+          contextPrompt += `- مرفق رابط (${idx + 1}): "${att.name || att.url}" | الرابط: ${att.url || att.content}\n`;
+          if (att.content && att.content !== att.url) {
+            contextPrompt += `محتوى أو تفاصيل الرابط:\n"""\n${att.content.slice(0, 4000)}\n"""\n`;
+          }
+        } else if (att.type === 'text') {
+          contextPrompt += `- مرفق نص مقتبس (${idx + 1}): "${att.name}"\n"""\n${(att.content || '').slice(0, 8000)}\n"""\n`;
+        } else if (att.type === 'image') {
+          contextPrompt += `- مرفق صورة (${idx + 1}): "${att.name}"${att.size ? ` (${(att.size / 1024).toFixed(1)} KB)` : ''} (تم إرفاقها للفحص الفني / البصري).\n`;
+        }
       });
     }
 
@@ -80,10 +111,33 @@ export async function POST(req: NextRequest) {
       const ai = new GoogleGenAI({ apiKey });
 
       try {
-        const contents = formattedMessages.map((msg) => ({
-          role: msg.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: msg.content }],
-        }));
+        const imageAttachments = (attachments || []).filter(
+          (a) => a.type === 'image' && a.content && a.content.startsWith('data:')
+        );
+
+        const contents = formattedMessages.map((msg, idx) => {
+          const parts: any[] = [{ text: msg.content }];
+          // Attach image inlineData to last user message if available
+          if (idx === formattedMessages.length - 1 && msg.role === 'user' && imageAttachments.length > 0) {
+            for (const img of imageAttachments) {
+              const metaPart = img.content!.split(',')[0];
+              const base64Data = img.content!.split(',')[1];
+              const mimeType = metaPart.split(';')[0].replace('data:', '') || 'image/jpeg';
+              if (base64Data) {
+                parts.push({
+                  inlineData: {
+                    mimeType,
+                    data: base64Data,
+                  },
+                });
+              }
+            }
+          }
+          return {
+            role: msg.role === 'assistant' ? 'model' : 'user',
+            parts,
+          };
+        });
 
         const response = await ai.models.generateContent({
           model: selectedModel,

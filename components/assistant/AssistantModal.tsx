@@ -22,7 +22,16 @@ import {
   Layers,
   Clock,
   Compass,
-  AlertCircle
+  AlertCircle,
+  Paperclip,
+  Image as ImageIcon,
+  FileText,
+  Link as LinkIcon,
+  FileCode,
+  FileUp,
+  Plus,
+  Loader2,
+  Check
 } from 'lucide-react';
 import { useTheme } from '@/components/theme/ThemeContext';
 import {
@@ -31,7 +40,9 @@ import {
   CoinTechnicalAnalysis,
   NewsArticle,
   AssistantUserSettings,
-  PROVIDERS_CONFIG
+  PROVIDERS_CONFIG,
+  ChatAttachment,
+  AttachmentType
 } from './AssistantTypes';
 import { AssistantSettingsModal } from './AssistantSettingsModal';
 
@@ -106,6 +117,19 @@ export function AssistantModal({
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [isFetchingNews, setIsFetchingNews] = useState<boolean>(false);
 
+  // Attachment states (File, Image, Text snippet, Link)
+  const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
+  const [activeAttachmentMenu, setActiveAttachmentMenu] = useState<boolean>(false);
+  const [attachmentModalType, setAttachmentModalType] = useState<'link' | 'text' | null>(null);
+  const [linkInput, setLinkInput] = useState<string>('');
+  const [isFetchingLink, setIsFetchingLink] = useState<boolean>(false);
+  const [linkFetchError, setLinkFetchError] = useState<string | null>(null);
+  const [textSnippetTitle, setTextSnippetTitle] = useState<string>('');
+  const [textSnippetContent, setTextSnippetContent] = useState<string>('');
+  const [previewImageModal, setPreviewImageModal] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -118,9 +142,161 @@ export function AssistantModal({
 
   const currentProviderConfig = PROVIDERS_CONFIG[settings.activeProvider];
 
+  // Image Upload Handler
+  const handleSelectImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 8 * 1024 * 1024) {
+      alert('الحد الأقصى لحجم الصورة هو 8 ميغابايت.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      const newAtt: ChatAttachment = {
+        id: `img-${Date.now()}`,
+        type: 'image',
+        name: file.name,
+        mimeType: file.type || 'image/png',
+        size: file.size,
+        content: dataUrl,
+        url: dataUrl,
+      };
+      setPendingAttachments((prev) => [...prev, newAtt]);
+      setActiveAttachmentMenu(false);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  // Document/Data File Upload Handler
+  const handleSelectDocFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 4 * 1024 * 1024) {
+      alert('الحد الأقصى لحجم الملف هو 4 ميغابايت.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const textContent = event.target?.result as string;
+      const newAtt: ChatAttachment = {
+        id: `file-${Date.now()}`,
+        type: 'file',
+        name: file.name,
+        mimeType: file.type || 'text/plain',
+        size: file.size,
+        content: textContent,
+      };
+      setPendingAttachments((prev) => [...prev, newAtt]);
+      setActiveAttachmentMenu(false);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  // Web Link / URL Handler
+  const handleAddLink = async () => {
+    const url = linkInput.trim();
+    if (!url) return;
+
+    let validUrl = url;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      validUrl = `https://${url}`;
+    }
+
+    setIsFetchingLink(true);
+    setLinkFetchError(null);
+
+    try {
+      const res = await fetch('/api/assistant/fetch-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: validUrl }),
+      });
+      const data = await res.json();
+
+      const title = data.title || validUrl;
+      const snippet = data.snippet || validUrl;
+
+      const newAtt: ChatAttachment = {
+        id: `link-${Date.now()}`,
+        type: 'link',
+        name: title,
+        url: validUrl,
+        content: snippet,
+      };
+
+      setPendingAttachments((prev) => [...prev, newAtt]);
+      setLinkInput('');
+      setAttachmentModalType(null);
+      setActiveAttachmentMenu(false);
+    } catch {
+      // Fallback: attach directly
+      const newAtt: ChatAttachment = {
+        id: `link-${Date.now()}`,
+        type: 'link',
+        name: validUrl,
+        url: validUrl,
+        content: validUrl,
+      };
+      setPendingAttachments((prev) => [...prev, newAtt]);
+      setLinkInput('');
+      setAttachmentModalType(null);
+      setActiveAttachmentMenu(false);
+    } finally {
+      setIsFetchingLink(false);
+    }
+  };
+
+  // Text Snippet Handler
+  const handleAddTextSnippet = () => {
+    const content = textSnippetContent.trim();
+    if (!content) return;
+
+    const newAtt: ChatAttachment = {
+      id: `text-${Date.now()}`,
+      type: 'text',
+      name: textSnippetTitle.trim() || 'نص مقتبس',
+      content,
+      size: content.length,
+    };
+
+    setPendingAttachments((prev) => [...prev, newAtt]);
+    setTextSnippetTitle('');
+    setTextSnippetContent('');
+    setAttachmentModalType(null);
+    setActiveAttachmentMenu(false);
+  };
+
+  // Remove Attachment Handler
+  const handleRemovePendingAttachment = (id: string) => {
+    setPendingAttachments((prev) => prev.filter((a) => a.id !== id));
+  };
+
   const handleSendMessage = async (textToSend?: string, contextData?: { market?: CoinTechnicalAnalysis; news?: NewsArticle[] }) => {
-    const text = (textToSend || inputPrompt).trim();
-    if (!text || isLoading) return;
+    const rawText = (textToSend || inputPrompt).trim();
+    const currentAttachments = [...pendingAttachments];
+
+    if (!rawText && currentAttachments.length === 0) return;
+    if (isLoading) return;
+
+    let text = rawText;
+    if (!text && currentAttachments.length > 0) {
+      const firstType = currentAttachments[0].type;
+      text =
+        firstType === 'image'
+          ? 'يرجى مراجعة هذه الصورة وفحص الشارت أو البيانات المرفقة بها وتحليلها بدقة.'
+          : firstType === 'file'
+          ? `يرجى مراجعة ملف "${currentAttachments[0].name}" وتحليل بياناته فنيًا واقتصاديًا.`
+          : firstType === 'link'
+          ? `يرجى دراسة وتلخيص هذا الرابط وتوضيح أثره: ${currentAttachments[0].url || currentAttachments[0].name}`
+          : 'يرجى مراجعة النص المقتبس المرفق وتقديم تحليلك له.';
+    }
 
     const userMessage: ChatMessage = {
       id: `usr-${Date.now()}`,
@@ -130,12 +306,14 @@ export function AssistantModal({
       metadata: {
         technicalAnalysis: contextData?.market,
         newsArticles: contextData?.news,
+        attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
       },
     };
 
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInputPrompt('');
+    setPendingAttachments([]);
     setIsLoading(true);
 
     try {
@@ -151,6 +329,7 @@ export function AssistantModal({
           customApiKey: activeKey,
           marketContext: contextData?.market,
           newsContext: contextData?.news,
+          attachments: currentAttachments,
         }),
       });
 
@@ -569,6 +748,79 @@ export function AssistantModal({
                         : 'bg-slate-800/80 border border-slate-700 text-slate-100 rounded-tl-xs'
                     }`}
                   >
+                    {/* Render Message Attachments (if any) */}
+                    {msg.metadata?.attachments && msg.metadata.attachments.length > 0 && (
+                      <div className="mb-2 space-y-2">
+                        {msg.metadata.attachments.map((att) => (
+                          <div key={att.id} className="text-xs">
+                            {att.type === 'image' && att.content && (
+                              <div className="relative group overflow-hidden rounded-xl border border-emerald-500/30 bg-black/40">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={att.content}
+                                  alt={att.name}
+                                  className="max-h-48 rounded-xl object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                                  onClick={() => setPreviewImageModal(att.content!)}
+                                />
+                                <div className="p-1.5 flex items-center justify-between text-[10px] text-slate-300 bg-black/60 backdrop-blur-xs">
+                                  <span className="truncate max-w-[160px] font-mono">{att.name}</span>
+                                  <span className="text-emerald-400 font-bold">صورة 🔍</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {att.type === 'file' && (
+                              <div className={`p-2.5 rounded-xl border flex items-center gap-2 ${
+                                isUser ? 'bg-emerald-700/60 border-emerald-500/40 text-white' : 'bg-slate-900/60 border-slate-700 text-slate-200'
+                              }`}>
+                                <FileText className="w-4 h-4 text-emerald-400 shrink-0" />
+                                <div className="flex-1 min-w-0 text-[11px]">
+                                  <div className="font-semibold truncate">{att.name}</div>
+                                  <div className="text-[9px] opacity-75">
+                                    ملف مرفق {att.size ? `(${(att.size / 1024).toFixed(1)} KB)` : ''}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {att.type === 'link' && (
+                              <a
+                                href={att.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 transition-colors hover:border-emerald-400 block ${
+                                  isUser ? 'bg-emerald-700/60 border-emerald-500/40 text-white' : 'bg-slate-900/60 border-slate-700 text-slate-200'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <Globe className="w-4 h-4 text-sky-400 shrink-0" />
+                                  <div className="min-w-0 text-[11px]">
+                                    <div className="font-semibold truncate">{att.name || att.url}</div>
+                                    <div className="text-[9px] opacity-75 truncate">{att.url}</div>
+                                  </div>
+                                </div>
+                                <ExternalLink className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                              </a>
+                            )}
+
+                            {att.type === 'text' && (
+                              <div className={`p-2.5 rounded-xl border text-[11px] ${
+                                isUser ? 'bg-emerald-700/60 border-emerald-500/40 text-white' : 'bg-slate-900/60 border-slate-700 text-slate-200'
+                              }`}>
+                                <div className="flex items-center gap-1.5 font-bold mb-1 text-emerald-400">
+                                  <FileCode className="w-3.5 h-3.5" />
+                                  <span>{att.name}</span>
+                                </div>
+                                <div className="text-[10px] font-mono whitespace-pre-wrap max-h-32 overflow-y-auto bg-black/20 p-1.5 rounded-lg">
+                                  {att.content}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     {/* Render Formatted Markdown */}
                     {renderFormattedContent(msg.content)}
 
@@ -752,9 +1004,56 @@ export function AssistantModal({
         </div>
 
         {/* Input Bar */}
-        <div className={`p-3 border-t shrink-0 ${
+        <div className={`p-3 border-t shrink-0 relative ${
           isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'
         }`}>
+          {/* Pending Attachments Strip */}
+          {pendingAttachments.length > 0 && (
+            <div className="mb-2 flex items-center gap-1.5 overflow-x-auto pb-1">
+              <span className="text-[10px] text-slate-400 font-semibold shrink-0">المرفقات ({pendingAttachments.length}):</span>
+              {pendingAttachments.map((att) => (
+                <div
+                  key={att.id}
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[11px] shrink-0 ${
+                    isLight
+                      ? 'bg-slate-100 border-slate-300 text-slate-800'
+                      : 'bg-slate-950 border-slate-700 text-slate-200'
+                  }`}
+                >
+                  {att.type === 'image' && <ImageIcon className="w-3.5 h-3.5 text-emerald-400" />}
+                  {att.type === 'file' && <FileText className="w-3.5 h-3.5 text-blue-400" />}
+                  {att.type === 'link' && <LinkIcon className="w-3.5 h-3.5 text-sky-400" />}
+                  {att.type === 'text' && <FileCode className="w-3.5 h-3.5 text-amber-400" />}
+                  <span className="max-w-[120px] truncate">{att.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemovePendingAttachment(att.id)}
+                    className="p-0.5 hover:bg-slate-700/50 rounded text-slate-400 hover:text-rose-400"
+                    title="إزالة المرفق"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Hidden file inputs for attachments */}
+          <input
+            type="file"
+            ref={imageInputRef}
+            onChange={handleSelectImageFile}
+            accept="image/*"
+            className="hidden"
+          />
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleSelectDocFile}
+            accept=".txt,.json,.csv,.md,.log,.pdf"
+            className="hidden"
+          />
+
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -762,6 +1061,112 @@ export function AssistantModal({
             }}
             className="flex items-end gap-2"
           >
+            {/* Attachment Button & Popup Menu */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setActiveAttachmentMenu(!activeAttachmentMenu)}
+                title="إرفاق ملف، صورة، نص، أو رابط"
+                className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all ${
+                  pendingAttachments.length > 0
+                    ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
+                    : isLight
+                    ? 'border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-600'
+                    : 'border-slate-700 bg-slate-950 hover:bg-slate-800 text-slate-300'
+                }`}
+              >
+                <Paperclip className="w-4 h-4" />
+                {pendingAttachments.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-[9px] font-bold text-white flex items-center justify-center">
+                    {pendingAttachments.length}
+                  </span>
+                )}
+              </button>
+
+              {/* Attachment Selection Menu */}
+              {activeAttachmentMenu && (
+                <div
+                  className={`absolute bottom-12 right-0 z-50 w-56 rounded-xl border shadow-xl p-1.5 space-y-1 animate-in fade-in duration-150 ${
+                    isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-slate-900 border-slate-800 text-slate-100'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      imageInputRef.current?.click();
+                    }}
+                    className={`w-full p-2 rounded-lg text-right text-xs flex items-center gap-2.5 transition-colors ${
+                      isLight ? 'hover:bg-slate-100' : 'hover:bg-slate-800'
+                    }`}
+                  >
+                    <div className="w-6 h-6 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                      <ImageIcon className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-[11px]">رفع صورة أو شارت</div>
+                      <div className="text-[9px] text-slate-400">PNG, JPG, WEBP</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      fileInputRef.current?.click();
+                    }}
+                    className={`w-full p-2 rounded-lg text-right text-xs flex items-center gap-2.5 transition-colors ${
+                      isLight ? 'hover:bg-slate-100' : 'hover:bg-slate-800'
+                    }`}
+                  >
+                    <div className="w-6 h-6 rounded-md bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+                      <FileText className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-[11px]">رفع ملف بيانات / مستند</div>
+                      <div className="text-[9px] text-slate-400">CSV, JSON, TXT, MD</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAttachmentModalType('link');
+                      setActiveAttachmentMenu(false);
+                    }}
+                    className={`w-full p-2 rounded-lg text-right text-xs flex items-center gap-2.5 transition-colors ${
+                      isLight ? 'hover:bg-slate-100' : 'hover:bg-slate-800'
+                    }`}
+                  >
+                    <div className="w-6 h-6 rounded-md bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0">
+                      <LinkIcon className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-[11px]">إضافة رابط ويب (URL)</div>
+                      <div className="text-[9px] text-slate-400">مقال، خبر، أو منصة</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAttachmentModalType('text');
+                      setActiveAttachmentMenu(false);
+                    }}
+                    className={`w-full p-2 rounded-lg text-right text-xs flex items-center gap-2.5 transition-colors ${
+                      isLight ? 'hover:bg-slate-100' : 'hover:bg-slate-800'
+                    }`}
+                  >
+                    <div className="w-6 h-6 rounded-md bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                      <FileCode className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-[11px]">لصق نص مقتبس</div>
+                      <div className="text-[9px] text-slate-400">ملاحظات أو كود أو أرقام</div>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="relative flex-1">
               <textarea
                 value={inputPrompt}
@@ -772,7 +1177,11 @@ export function AssistantModal({
                     handleSendMessage();
                   }
                 }}
-                placeholder="اسأل عن تحليل عملة، مستويات الدعم، أو مستجدات السوق..."
+                placeholder={
+                  pendingAttachments.length > 0
+                    ? "اكتب استفسارك أو تعليماتك بخصوص المرفقات..."
+                    : "اسأل عن تحليل عملة، مستويات الدعم، أو ارفع ملف/صورة/رابط..."
+                }
                 rows={2}
                 className={`w-full px-3 py-2 rounded-xl border text-xs resize-none transition-colors focus:outline-hidden focus:ring-2 focus:ring-emerald-500 ${
                   isLight
@@ -784,7 +1193,7 @@ export function AssistantModal({
 
             <button
               type="submit"
-              disabled={!inputPrompt.trim() || isLoading}
+              disabled={(!inputPrompt.trim() && pendingAttachments.length === 0) || isLoading}
               className="w-10 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white flex items-center justify-center shrink-0 shadow-xs transition-all active:scale-95"
             >
               <Send className="w-4 h-4 -rotate-90" />
@@ -797,6 +1206,157 @@ export function AssistantModal({
           </p>
         </div>
       </div>
+
+      {/* Link Attachment Modal */}
+      {attachmentModalType === 'link' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+          <div className={`w-full max-w-md rounded-2xl border p-4 shadow-2xl space-y-3 ${
+            isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-slate-100'
+          }`}>
+            <div className="flex items-center justify-between pb-2 border-b border-slate-700/50">
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-sky-400" />
+                <h3 className="text-xs font-bold">إرفاق رابط ويب لتحليله</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAttachmentModalType(null)}
+                className="p-1 rounded-lg hover:bg-slate-800 text-slate-400"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold mb-1">عنوان الرابط (URL):</label>
+              <input
+                type="url"
+                placeholder="https://example.com/crypto-news..."
+                value={linkInput}
+                onChange={(e) => setLinkInput(e.target.value)}
+                className={`w-full px-3 py-2 rounded-xl border text-xs font-mono focus:outline-hidden ${
+                  isLight ? 'bg-slate-50 border-slate-300' : 'bg-slate-950 border-slate-700'
+                }`}
+              />
+              <p className="text-[10px] text-slate-400 mt-1">
+                يمكنك إرفاق رابط مقال، خبر، أو منصة تحليلات لدراسته.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-700/50">
+              <button
+                type="button"
+                onClick={() => setAttachmentModalType(null)}
+                className="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 text-xs hover:bg-slate-800"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={handleAddLink}
+                disabled={!linkInput.trim() || isFetchingLink}
+                className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center gap-1.5"
+              >
+                {isFetchingLink ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                <span>{isFetchingLink ? 'جاري الفحص...' : 'إرفاق الرابط'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Text Snippet Modal */}
+      {attachmentModalType === 'text' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+          <div className={`w-full max-w-md rounded-2xl border p-4 shadow-2xl space-y-3 ${
+            isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-slate-100'
+          }`}>
+            <div className="flex items-center justify-between pb-2 border-b border-slate-700/50">
+              <div className="flex items-center gap-2">
+                <FileCode className="w-4 h-4 text-amber-400" />
+                <h3 className="text-xs font-bold">لصق نص مقتبس أو ملاحظات إضافية</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAttachmentModalType(null)}
+                className="p-1 rounded-lg hover:bg-slate-800 text-slate-400"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold mb-1">عنوان المقتطف (اختياري):</label>
+              <input
+                type="text"
+                placeholder="مثال: ملاحظات دعم البيتكوين"
+                value={textSnippetTitle}
+                onChange={(e) => setTextSnippetTitle(e.target.value)}
+                className={`w-full px-3 py-1.5 rounded-xl border text-xs focus:outline-hidden ${
+                  isLight ? 'bg-slate-50 border-slate-300' : 'bg-slate-950 border-slate-700'
+                }`}
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold mb-1">النص أو الأرقام المراد إرفاقها:</label>
+              <textarea
+                rows={5}
+                placeholder="الصق هنا أي نص أو أرقام أو مؤشرات تريد من المساعد دراستها..."
+                value={textSnippetContent}
+                onChange={(e) => setTextSnippetContent(e.target.value)}
+                className={`w-full px-3 py-2 rounded-xl border text-xs font-mono resize-none focus:outline-hidden ${
+                  isLight ? 'bg-slate-50 border-slate-300' : 'bg-slate-950 border-slate-700'
+                }`}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-700/50">
+              <button
+                type="button"
+                onClick={() => setAttachmentModalType(null)}
+                className="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 text-xs hover:bg-slate-800"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={handleAddTextSnippet}
+                disabled={!textSnippetContent.trim()}
+                className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center gap-1.5"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>إرفاق النص</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Preview Lightbox Modal */}
+      {previewImageModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in"
+          onClick={() => setPreviewImageModal(null)}
+        >
+          <div className="relative max-w-3xl max-h-[90vh] flex flex-col items-center">
+            <button
+              type="button"
+              onClick={() => setPreviewImageModal(null)}
+              className="absolute -top-10 left-0 p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-white cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewImageModal}
+              alt="معاينة الصورة المكبرة"
+              className="max-h-[85vh] max-w-full rounded-2xl border border-slate-700 shadow-2xl object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Settings Modal */}
       <AssistantSettingsModal

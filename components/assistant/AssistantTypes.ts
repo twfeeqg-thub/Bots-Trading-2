@@ -15,6 +15,7 @@ export interface ProviderModelConfig {
   contextWindow?: string;
   description: string;
   isDynamic?: boolean;
+  isFree?: boolean;
 }
 
 export interface ProviderInfo {
@@ -61,10 +62,10 @@ export const PROVIDERS_CONFIG: Record<AIProvider, ProviderInfo> = {
     name: 'OpenRouter (نماذج مجانية)',
     defaultModel: 'deepseek/deepseek-r1:free',
     models: [
-      { id: 'deepseek/deepseek-r1:free', name: 'DeepSeek R1 (Free)', description: 'نموذج التفكير والاستنتاج الرياضي والمنطقي مجاناً' },
-      { id: 'meta-llama/llama-3.3-70b-instruct:free', name: 'Llama 3.3 70B (Free)', description: 'أقوى نموذج مفتوح المصدر مجاني فائق الذكاء' },
-      { id: 'qwen/qwen-2.5-72b-instruct:free', name: 'Qwen 2.5 72B (Free)', description: 'دقة عالية جداً في الحسابات واللغة العربية' },
-      { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash Exp (Free)', description: 'سرعة استجابة هائلة بدون تكلفة' },
+      { id: 'deepseek/deepseek-r1:free', name: 'DeepSeek R1', description: 'نموذج التفكير والاستنتاج الرياضي والمنطقي مجاناً', isFree: true },
+      { id: 'meta-llama/llama-3.3-70b-instruct:free', name: 'Llama 3.3 70B', description: 'أقوى نموذج مفتوح المصدر مجاني فائق الذكاء', isFree: true },
+      { id: 'qwen/qwen-2.5-72b-instruct:free', name: 'Qwen 2.5 72B', description: 'دقة عالية جداً في الحسابات واللغة العربية', isFree: true },
+      { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash Exp', description: 'سرعة استجابة هائلة بدون تكلفة', isFree: true },
     ],
     keyPlaceholder: 'sk-or-v1-...',
     docsUrl: 'https://openrouter.ai/keys',
@@ -127,6 +128,18 @@ export const PROVIDERS_CONFIG: Record<AIProvider, ProviderInfo> = {
   },
 };
 
+export type AttachmentType = 'image' | 'file' | 'text' | 'link';
+
+export interface ChatAttachment {
+  id: string;
+  type: AttachmentType;
+  name: string;
+  url?: string;
+  mimeType?: string;
+  size?: number;
+  content?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -138,6 +151,7 @@ export interface ChatMessage {
     technicalAnalysis?: CoinTechnicalAnalysis;
     newsArticles?: NewsArticle[];
     errorType?: AssistantErrorType;
+    attachments?: ChatAttachment[];
   };
 }
 
