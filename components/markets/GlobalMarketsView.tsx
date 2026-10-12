@@ -4,20 +4,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Globe, 
   Clock, 
-  Flame, 
-  Landmark, 
-  TrendingUp, 
-  Building2, 
-  ShieldAlert, 
-  CheckCircle2, 
-  AlertTriangle,
-  Layers,
-  Zap,
-  Info,
-  Calendar,
-  Sparkles,
-  ArrowRight,
-  BarChart3
+  Layers, 
+  Sparkles, 
+  ArrowRight 
 } from 'lucide-react';
 import { useTheme } from '@/components/theme/ThemeContext';
 import { 
@@ -25,7 +14,6 @@ import {
   OVERLAP_WINDOWS, 
   getCurrentTimeUtc3, 
   calculateSessionStatus, 
-  getCmeStatus, 
   formatMinutesAr,
   MarketSession
 } from '@/lib/markets/sessions';
@@ -61,9 +49,6 @@ export function GlobalMarketsView({
       calculateSessionStatus(session, utc3.totalMinutesOfDay)
     );
   }, [utc3.totalMinutesOfDay]);
-
-  // CME Status
-  const cmeStatus = useMemo(() => getCmeStatus(utc3), [utc3]);
 
   // Active Overlaps
   const activeOverlaps = useMemo(() => {
@@ -508,155 +493,6 @@ export function GlobalMarketsView({
               </div>
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* ------------------------------------------------------------- */}
-      {/* MODULE 3: Price Discovery Matrix (Perpetual Futures, CME, Spot) */}
-      {/* ------------------------------------------------------------- */}
-      <section className={`rounded-2xl p-4 sm:p-6 border shadow-sm space-y-5 transition-colors ${
-        isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'
-      }`}>
-        <div className="flex items-center gap-2 border-b pb-3 border-slate-800/40">
-          <Landmark className="w-5 h-5 text-amber-500" />
-          <div>
-            <h3 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
-              مثلث اكتشاف السعر (Price Discovery Triad) — من أين يتحرك سعر البيتكوين حقاً؟
-            </h3>
-            <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-              التحليل الهيكلي لتدفق السيولة بين العقود الدائمة، والمؤسسات المنظمة (CME)، وبورصات التداول الفوري
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* 1. Perpetual Futures Card */}
-          <div className={`rounded-xl border p-4 space-y-3 ${
-            isLight ? 'bg-amber-50/60 border-amber-200' : 'bg-amber-950/20 border-amber-500/30'
-          }`}>
-            <div className="flex items-center justify-between">
-              <span className="text-xs px-2 py-0.5 rounded font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                1. المحرك القائد (The Engine)
-              </span>
-              <Zap className="w-4 h-4 text-amber-400" />
-            </div>
-            <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
-              العقود الدائمة (Perpetual Futures)
-            </h4>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              الآلية الأقوى لاكتشاف الأسعار اللحظية؛ تشكل <strong className="text-amber-400">93%</strong> من إجمالي حجم تداول المشتقات للبيتكوين، حيث تدخل المعلومات الجديدة هنا أولاً لتشكل السعر.
-            </p>
-            <div className={`p-2.5 rounded-lg border text-xs space-y-1.5 font-mono ${
-              isLight ? 'bg-white border-amber-200 text-slate-800' : 'bg-slate-950 border-amber-500/20 text-slate-200'
-            }`}>
-              <div className="flex justify-between">
-                <span>اللاعب المهيمن:</span>
-                <strong className="text-amber-400">Binance (33% - 40%)</strong>
-              </div>
-              <div className="flex justify-between">
-                <span>كبار المنافسين:</span>
-                <span>Bybit (~15%) &amp; OKX</span>
-              </div>
-              <div className="flex justify-between text-[11px] text-slate-400 font-sans">
-                <span>الدور التداولي:</span>
-                <span className="text-emerald-400">يقود الاختراقات اللحظية</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 2. CME Regulated Futures Card */}
-          <div className={`rounded-xl border p-4 space-y-3 ${
-            isLight ? 'bg-blue-50/60 border-blue-200' : 'bg-blue-950/20 border-blue-500/30'
-          }`}>
-            <div className="flex items-center justify-between">
-              <span className="text-xs px-2 py-0.5 rounded font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                2. ثقل المؤسسات (Institutions)
-              </span>
-              <Building2 className="w-4 h-4 text-blue-400" />
-            </div>
-            <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
-              مجموعة شيكاغو التجارية (CME Group)
-            </h4>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              السوق المنظم الأبرز للبنوك الكبرى وصناديق الـ ETF؛ تقود أنشطة التحوط (Hedging) وإدارة المخاطر بعيدة المدى، وتعمل بنظام 24/7.
-            </p>
-            <div className={`p-2.5 rounded-lg border text-xs space-y-1.5 font-mono ${
-              isLight ? 'bg-white border-blue-200 text-slate-800' : 'bg-slate-950 border-blue-500/20 text-slate-200'
-            }`}>
-              <div className="flex justify-between">
-                <span>حالة CME اللحظية:</span>
-                <strong className={cmeStatus.isMaintenance ? 'text-rose-400' : 'text-emerald-400'}>
-                  {cmeStatus.isMaintenance ? 'توقف صيانة مؤقت' : 'نشط مستمر 24/7'}
-                </strong>
-              </div>
-              <div className="flex justify-between">
-                <span>نافذة الصيانة:</span>
-                <span>فجر الاثنين (1:00 ص - 2:00 ص)</span>
-              </div>
-              <div className="flex justify-between text-[11px] text-slate-400 font-sans">
-                <span>الدور المؤسساتي:</span>
-                <span className="text-blue-400">تثبيت الاتجاه العام والتحوط</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 3. Spot Exchanges Card */}
-          <div className={`rounded-xl border p-4 space-y-3 ${
-            isLight ? 'bg-emerald-50/60 border-emerald-200' : 'bg-emerald-950/20 border-emerald-500/30'
-          }`}>
-            <div className="flex items-center justify-between">
-              <span className="text-xs px-2 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                3. مرساة السيولة (The Anchor)
-              </span>
-              <BarChart3 className="w-4 h-4 text-emerald-400" />
-            </div>
-            <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
-              بورصات التداول الفوري (Spot Exchanges)
-            </h4>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              أسواق الشراء والبيع الفعلي بنقل الملكية؛ تمثل الأساس المرجعي لسعر التسوية الذي تقاس عليه كافة المشتقات المالية وصناديق التداول.
-            </p>
-            <div className={`p-2.5 rounded-lg border text-xs space-y-1.5 font-mono ${
-              isLight ? 'bg-white border-emerald-200 text-slate-800' : 'bg-slate-950 border-emerald-500/20 text-slate-200'
-            }`}>
-              <div className="flex justify-between">
-                <span>حجم Binance Spot:</span>
-                <strong className="text-emerald-400">≈ $7.5 مليار يومياً</strong>
-              </div>
-              <div className="flex justify-between">
-                <span>مؤشر أمريكا:</span>
-                <span>Coinbase (مؤشر المؤسسات)</span>
-              </div>
-              <div className="flex justify-between text-[11px] text-slate-400 font-sans">
-                <span>الدور الفوري:</span>
-                <span className="text-emerald-400">مرساة السعر النهائي والسيولة</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* CME Maintenance Warning Banner */}
-        <div className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 text-xs ${
-          cmeStatus.isMaintenance
-            ? 'bg-rose-950/40 border-rose-500/40 text-rose-300'
-            : cmeStatus.isUpcomingSoon
-            ? 'bg-amber-950/40 border-amber-500/40 text-amber-300'
-            : isLight
-            ? 'bg-slate-50 border-slate-200 text-slate-700'
-            : 'bg-slate-950/60 border-slate-800 text-slate-300'
-        }`}>
-          <div className="flex items-center gap-2">
-            {cmeStatus.isMaintenance ? (
-              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
-            ) : (
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            )}
-            <span><strong>حالة CME Group:</strong> {cmeStatus.messageAr}</span>
-          </div>
-
-          <span className="font-mono text-[11px] text-slate-400 hidden sm:inline">
-            الأحد 22:00 UTC = الاثنين 01:00 بتوقيت صنعاء/مكة
-          </span>
         </div>
       </section>
 

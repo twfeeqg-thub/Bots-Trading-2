@@ -2160,15 +2160,20 @@ export function TradeManagementView({
                       </div>
                     </div>
 
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold font-mono border ${
-                      selectedTrade.pnl.outcome === 'WIN'
-                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                        : selectedTrade.pnl.outcome === 'BREAKEVEN'
-                        ? 'bg-slate-800 text-slate-300 border-slate-700'
-                        : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                    }`}>
-                      {selectedTrade.pnl.outcome}
-                    </span>
+                    {(() => {
+                      const outcome = selectedTrade.pnl.netReturnQuote > 0 ? 'WIN' : selectedTrade.pnl.netReturnQuote === 0 ? 'BREAKEVEN' : 'LOSS';
+                      return (
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold font-mono border ${
+                          outcome === 'WIN'
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                            : outcome === 'BREAKEVEN'
+                            ? 'bg-slate-800 text-slate-300 border-slate-700'
+                            : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                        }`}>
+                          {outcome}
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-xs">
