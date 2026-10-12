@@ -2155,7 +2155,7 @@ export function TradeManagementView({
                           تم إغلاق الصفقة والتسوية المالية المؤكدة (Final Settlement)
                         </h4>
                         <p className="text-[11px] text-slate-400 mt-0.5">
-                          سبب الإغلاق: {selectedTrade.closeReason || selectedTrade.exit?.reason || 'إغلاق مؤكد'} • التوقيت: {new Date(selectedTrade.closedAt || Date.now()).toLocaleTimeString()}
+                          سبب الإغلاق: {selectedTrade.closeReason || selectedTrade.exit?.reason || 'إغلاق مؤكد'} • التوقيت: {selectedTrade.closedAt ? new Date(selectedTrade.closedAt).toLocaleTimeString() : 'مكتمل'}
                         </p>
                       </div>
                     </div>

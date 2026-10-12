@@ -18,59 +18,12 @@ import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { SessionStatusBadge } from '@/components/markets/SessionStatusBadge';
 import { useTheme } from '@/components/theme/ThemeContext';
 import { ScannerView } from '@/components/scanner/ScannerView';
-import dynamic from 'next/dynamic';
-
-const ChartsView = dynamic(
-  () => import('@/components/charts/ChartsView').then((mod) => mod.ChartsView),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center p-12 text-slate-400 text-sm gap-2">
-        <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-        <span>جاري تحميل منصة الشارتات التفاعلية...</span>
-      </div>
-    ),
-  }
-);
-
-const TradeManagementView = dynamic(
-  () => import('@/components/trades/TradeManagementView').then((mod) => mod.TradeManagementView),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center p-12 text-slate-400 text-sm gap-2">
-        <div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
-        <span>جاري تحميل مدير الصفقة...</span>
-      </div>
-    ),
-  }
-);
-
-const AnalyticsView = dynamic(
-  () => import('@/components/analytics/AnalyticsView').then((mod) => mod.AnalyticsView),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center p-12 text-slate-400 text-sm gap-2">
-        <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-        <span>جاري تحميل منصة التحليلات وPnL المتقدم...</span>
-      </div>
-    ),
-  }
-);
-
-const GlobalMarketsView = dynamic(
-  () => import('@/components/markets/GlobalMarketsView').then((mod) => mod.GlobalMarketsView),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center p-12 text-slate-400 text-sm gap-2">
-        <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-        <span>جاري تحميل خريطة الأسواق والسيولة العالمية...</span>
-      </div>
-    ),
-  }
-);
+import { ChartsView } from '@/components/charts/ChartsView';
+import { TradeManagementView } from '@/components/trades/TradeManagementView';
+import { AnalyticsView } from '@/components/analytics/AnalyticsView';
+import { GlobalMarketsView } from '@/components/markets/GlobalMarketsView';
+import { AssistantFloatingButton } from '@/components/assistant/AssistantFloatingButton';
+import { AssistantModal } from '@/components/assistant/AssistantModal';
 
 export default function HomePage() {
   const { isLight } = useTheme();
@@ -78,6 +31,7 @@ export default function HomePage() {
   const [selectedAssetForChart, setSelectedAssetForChart] = useState<string | null>(null);
   const [selectedAssetForTrade, setSelectedAssetForTrade] = useState<{ symbol: string; price?: number } | null>(null);
   const [isPipelineExpanded, setIsPipelineExpanded] = useState<boolean>(false);
+  const [isAssistantOpen, setIsAssistantOpen] = useState<boolean>(false);
 
   const handleAssetSelect = (symbol: string) => {
     setSelectedAssetForChart(symbol);
@@ -444,6 +398,19 @@ export default function HomePage() {
           </button>
         </div>
       </nav>
+
+      {/* Floating Smart Assistant Trigger */}
+      <AssistantFloatingButton
+        isOpen={isAssistantOpen}
+        onClick={() => setIsAssistantOpen(!isAssistantOpen)}
+      />
+
+      {/* Independent Smart Assistant Modal */}
+      <AssistantModal
+        isOpen={isAssistantOpen}
+        onClose={() => setIsAssistantOpen(false)}
+        currentChartSymbol={selectedAssetForChart}
+      />
     </div>
   );
 }

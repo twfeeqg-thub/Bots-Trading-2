@@ -16,7 +16,13 @@ export default function GlobalError({
             {error?.message || 'واجه التطبيق خطأ غير متوقع.'}
           </p>
           <button
-            onClick={() => reset()}
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.location.reload();
+              } else {
+                reset();
+              }
+            }}
             className="px-4 py-2 text-sm font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 transition-colors"
           >
             إعادة تحميل التطبيق
