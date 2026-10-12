@@ -50,7 +50,11 @@ import {
 import { BotSummaryDTO } from '@/lib/engine/types';
 import { sharedMarketDataStore, MarketPriceRecord } from '@/lib/market-data';
 
-export function BotManagementView() {
+interface BotManagementViewProps {
+  onNavigateToTradeManager?: (symbol?: string) => void;
+}
+
+export function BotManagementView({ onNavigateToTradeManager }: BotManagementViewProps = {}) {
   const [bots, setBots] = useState<BotSummaryDTO[]>([]);
   const [selectedBotId, setSelectedBotId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
@@ -524,6 +528,20 @@ export function BotManagementView() {
                       معرّف البوت: {botConfig.id} • الزوج: {botConfig.symbol} • مبلغ الدخول:{' '}
                       {botConfig.entryAmount} USDT
                     </p>
+                    {onNavigateToTradeManager && (
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onNavigateToTradeManager(botConfig.symbol)}
+                          className="px-2 py-0.5 rounded bg-indigo-950/60 hover:bg-indigo-900/60 text-indigo-300 border border-indigo-500/30 text-[10px] font-sans flex items-center gap-1 transition-colors"
+                          title="عرض هذه الصفقة في دورة التداول الموحدة (مستويات T وX وصافي الربح)"
+                        >
+                          <TrendingUp className="w-3 h-3 text-indigo-400" />
+                          <span>إدارة الصفقة في دورة التداول الموحدة (T0 &amp; T-Levels)</span>
+                          <ArrowRight className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Market Data Widget */}

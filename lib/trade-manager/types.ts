@@ -136,6 +136,7 @@ export interface CreateTradeManualParams {
   botType?: BotType;
   xSettings?: XRangeSettings;
   initialStopLossPercent?: number;
+  immediateEntry?: boolean; // Whether to execute immediate Market Buy (default: true)
 }
 
 export interface CreateTradeScannerParams {
@@ -148,6 +149,7 @@ export interface CreateTradeScannerParams {
   botType?: BotType;
   xSettings?: XRangeSettings;
   initialStopLossPercent?: number;
+  immediateEntry?: boolean;
 }
 
 export interface LevelEvaluationResult {

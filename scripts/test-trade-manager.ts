@@ -159,6 +159,18 @@ async function runTestSuite() {
     'TradeManager operates strictly with Mock transport (Zero real Binance keys)'
   );
 
+  const { sharedMarketDataStore } = await import('../lib/market-data');
+  const now = Date.now();
+  sharedMarketDataStore.updatePrice('BTCUSDT', 65000, now, now);
+  sharedMarketDataStore.updatePrice('ETHUSDT', 3400, now, now);
+  sharedMarketDataStore.updatePrice('SOLUSDT', 140, now, now);
+  sharedMarketDataStore.updatePrice('AVAXUSDT', 30, now, now);
+  sharedMarketDataStore.updatePrice('DOTUSDT', 7, now, now);
+  sharedMarketDataStore.updatePrice('LINKUSDT', 15, now, now);
+  sharedMarketDataStore.updatePrice('BNBUSDT', 600, now, now);
+  sharedMarketDataStore.updatePrice('XRPUSDT', 0.55, now, now);
+  sharedMarketDataStore.updatePrice('ADAUSDT', 0.45, now, now);
+
   const manager = TradeManager.getInstance();
 
   // 5.1 Creation Path 1: Manual Entry

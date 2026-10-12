@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sharedTradeManager, sharedSymbolCostStore } from '@/lib/trade-manager';
+import { getSharedBotEngine } from '@/lib/engine';
 
 export async function GET() {
   try {
+    // Synchronize any standalone bots into TradeManager to maintain a unified trading cycle
+    try {
+      const engine = await getSharedBotEngine();
+      const bots = engine.listBots();
+      for (const bot of bots) {
+        if (!sharedTradeManager.getTradeByBotId(bot.id)) {
+          await sharedTradeManager.adoptBotAsManagedTrade(bot.id);
+        }
+      }
+    } catch {
+      // Non-fatal if engine synchronization experiences transient issues
+    }
+
     const trades = sharedTradeManager.listTrades();
     const activeTrades = sharedTradeManager.getActiveTrades();
     const closedTrades = sharedTradeManager.getClosedTrades();
@@ -37,6 +51,7 @@ export async function POST(req: NextRequest) {
     const botType = body.botType || (body.xSettings?.enabled ? 'RANGE_BOT' : 'DEAL_BOT');
     const xSettings = body.xSettings;
     const initialStopLossPercent = body.initialStopLossPercent !== undefined ? Number(body.initialStopLossPercent) : undefined;
+    const immediateEntry = body.immediateEntry !== undefined ? Boolean(body.immediateEntry) : undefined;
 
     if (!symbol) {
       return NextResponse.json(
@@ -57,6 +72,7 @@ export async function POST(req: NextRequest) {
         botType,
         xSettings,
         initialStopLossPercent,
+        immediateEntry,
       });
     } else {
       trade = await sharedTradeManager.createTradeFromManual({
@@ -69,6 +85,7 @@ export async function POST(req: NextRequest) {
         botType,
         xSettings,
         initialStopLossPercent,
+        immediateEntry,
       });
     }
 

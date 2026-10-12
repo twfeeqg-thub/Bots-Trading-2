@@ -30,6 +30,7 @@ export class TradeManager {
   private listeners: Set<TradeChangeListener> = new Set();
   private isMonitoringStarted: boolean = false;
   private unsubscribeMarketData: (() => void) | null = null;
+  private isProcessingTick: boolean = false;
 
   constructor() {
     this.startMarketDataMonitoring();
@@ -72,6 +73,7 @@ export class TradeManager {
       botType: params.botType,
       xSettings: params.xSettings,
       initialStopLossPercent: params.initialStopLossPercent,
+      immediateEntry: params.immediateEntry,
     });
   }
 
@@ -90,6 +92,7 @@ export class TradeManager {
       botType: params.botType,
       xSettings: params.xSettings,
       initialStopLossPercent: params.initialStopLossPercent,
+      immediateEntry: params.immediateEntry,
     });
   }
 
@@ -110,6 +113,7 @@ export class TradeManager {
     botType?: 'DEAL_BOT' | 'RANGE_BOT';
     xSettings?: import('@/lib/bots/types').XRangeSettings;
     initialStopLossPercent?: number;
+    immediateEntry?: boolean;
   }): Promise<ManagedTrade> {
     const tradeId = `trd_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const botId = `bot_trade_${params.symbol.toLowerCase()}_${Date.now().toString(36)}`;
@@ -173,8 +177,15 @@ export class TradeManager {
     this.trades.set(tradeId, trade);
     this.notifyListeners();
 
-    // Automatically trigger entry execution
-    await this.executeTradeEntry(tradeId, xSettings, params.initialStopLossPercent);
+    // If immediateEntry is not explicitly false, execute entry immediately
+    if (params.immediateEntry !== false) {
+      await this.executeTradeEntry(tradeId, xSettings, params.initialStopLossPercent);
+    } else {
+      // Start bot to WAITING_FOR_ENTRY so it's ready for manual trigger
+      try {
+        await engine.startBot(botId);
+      } catch {}
+    }
 
     return trade;
   }
@@ -507,32 +518,41 @@ export class TradeManager {
    * 2. Evaluates trailing T-levels and protection triggers.
    */
   public async onMarketPriceTick(symbol: string, currentPrice: number): Promise<void> {
-    if (!currentPrice || currentPrice <= 0) return;
+    if (!currentPrice || currentPrice <= 0 || this.isProcessingTick) return;
+    this.isProcessingTick = true;
 
-    for (const trade of this.trades.values()) {
-      if (trade.symbol === symbol && trade.status === 'OPEN' && trade.levelsPlan) {
-        // Step 1: Check X/Recovery triggers for RANGE_BOT
-        if (trade.xRecoveryPlan && trade.xRecoveryPlan.enabled) {
-          const recoveryTrigger = XRecoveryManager.checkTrigger(trade.xRecoveryPlan, currentPrice);
-          if (recoveryTrigger) {
-            await this.executeRecoveryBuy(trade.tradeId, recoveryTrigger.levelIndex);
-            continue; // Re-evaluate on next tick with new average price
+    try {
+      // Update the central market store with the currentPrice tick to ensure fresh market data for order execution
+      const now = Date.now();
+      sharedMarketDataStore.updatePrice(symbol, currentPrice, now, now);
+
+      for (const trade of this.trades.values()) {
+        if (trade.symbol === symbol && trade.status === 'OPEN' && trade.levelsPlan) {
+          // Step 1: Check X/Recovery triggers for RANGE_BOT
+          if (trade.xRecoveryPlan && trade.xRecoveryPlan.enabled) {
+            const recoveryTrigger = XRecoveryManager.checkTrigger(trade.xRecoveryPlan, currentPrice);
+            if (recoveryTrigger) {
+              await this.executeRecoveryBuy(trade.tradeId, recoveryTrigger.levelIndex);
+              continue; // Re-evaluate on next tick with new average price
+            }
+          }
+
+          // Step 2: Evaluate T-levels ladder and trailing protection
+          const evalResult = LevelCalculator.evaluatePriceTick(trade.levelsPlan, currentPrice);
+
+          if (evalResult.levelAdvanced) {
+            trade.notes = `تقدم المستوى إلى ${evalResult.newAchievedLevel}، مستوى الحماية الحالي: ${evalResult.newProtectionPrice} USDT`;
+            this.notifyListeners();
+          }
+
+          if (evalResult.shouldSell) {
+            // Trigger Sell via Trading Layer
+            await this.executeTradeExit(trade.tradeId, evalResult.triggerReason || 'تحقق شرط الحماية');
           }
         }
-
-        // Step 2: Evaluate T-levels ladder and trailing protection
-        const evalResult = LevelCalculator.evaluatePriceTick(trade.levelsPlan, currentPrice);
-
-        if (evalResult.levelAdvanced) {
-          trade.notes = `تقدم المستوى إلى ${evalResult.newAchievedLevel}، مستوى الحماية الحالي: ${evalResult.newProtectionPrice} USDT`;
-          this.notifyListeners();
-        }
-
-        if (evalResult.shouldSell) {
-          // Trigger Sell via Trading Layer
-          await this.executeTradeExit(trade.tradeId, evalResult.triggerReason || 'تحقق شرط الحماية');
-        }
       }
+    } finally {
+      this.isProcessingTick = false;
     }
   }
 
@@ -603,6 +623,14 @@ export class TradeManager {
 
       trade.notes = `تم إغلاق الصفقة بنجاح: ${reason}. صافي الربح: ${trade.pnl.netReturnQuote} USDT (${trade.pnl.netReturnPercent}%). العمولات الفعلية: ${trade.pnl.totalFeesQuote} USDT.`;
       this.notifyListeners();
+    } else if (sellResult.outcome === 'AMBIGUOUS' || sellResult.needsVerification) {
+      trade.status = 'PENDING_EXIT';
+      trade.notes = `أمر البيع (${reason}) قيد التحقق (AMBIGUOUS). يمنع تكرار الإرسال حتى التحقق.`;
+      this.notifyListeners();
+    } else if (sellResult.outcome === 'FAILED') {
+      trade.status = 'OPEN';
+      trade.notes = `فشل إرسال أمر البيع: ${sellResult.error || 'خطأ غير محدد'}. عادت الصفقة لحالة المراقبة.`;
+      this.notifyListeners();
     }
 
     return trade;
@@ -659,8 +687,27 @@ export class TradeManager {
           stepPercent: 2.0,
         });
       } else if (trade.status === 'PENDING_EXIT') {
+        const exitPrice = verifyRes.avgPrice || trade.entry.executionPrice || 1;
+        const exitQty = verifyRes.executedQty || trade.entry.filledQuantity || 1;
+        const realExitFee = exitPrice * exitQty * trade.costConfig.exitCostRate;
+
         trade.status = 'CLOSED';
         trade.closedAt = Date.now();
+        trade.exit = {
+          executionPrice: exitPrice,
+          filledQuantity: exitQty,
+          executedAt: verifyRes.timestamp || Date.now(),
+          orderId: verifyRes.orderId,
+          reason: 'تم تأكيد تنفيذ البيع عبر استعلام التحقق (Verify)',
+        };
+        trade.pnl = LevelCalculator.calculateNetPnL({
+          entryPrice: trade.entry.executionPrice || exitPrice,
+          exitPrice,
+          filledQuantity: exitQty,
+          entryCommissionQuote: trade.levelsPlan?.entryCommissionQuote || trade.costConfig.entryCostAmount,
+          exitCommissionQuote: realExitFee,
+        });
+        trade.notes = `تم تأكيد إغلاق الصفقة بالتحقق. صافي الربح: ${trade.pnl.netReturnQuote} USDT (${trade.pnl.netReturnPercent}%).`;
       }
       this.notifyListeners();
     }
@@ -670,6 +717,167 @@ export class TradeManager {
 
   public getTrade(tradeId: string): ManagedTrade | undefined {
     return this.trades.get(tradeId);
+  }
+
+  public getTradeByBotId(botId: string): ManagedTrade | undefined {
+    return Array.from(this.trades.values()).find((t) => t.botId === botId);
+  }
+
+  /**
+   * Adopts an existing BotInstance from BotEngine into TradeManager if not already managed.
+   * This bridges any bot created via BotEngine or previous sessions so that it participates
+   * in the unified trade lifecycle (T0, T-levels ladder, trailing protection, Net PnL).
+   */
+  public async adoptBotAsManagedTrade(botId: string): Promise<ManagedTrade | undefined> {
+    const existing = this.getTradeByBotId(botId);
+
+    const engine = await getSharedBotEngine();
+    const bot = engine.getBot(botId);
+    if (!bot) return existing;
+
+    const cfg = bot.getConfig();
+    const trade = bot.getCurrentTrade();
+    const cycle = bot.getCurrentCycle();
+    const state = bot.getState();
+
+    const isClosed = state === 'POSITION_CLOSED';
+    const isOpen = state === 'POSITION_OPEN';
+    const isPendingEntry = state === 'EXECUTING_BUY' || state === 'VERIFYING_BUY' || state === 'ENTRY_TRIGGERED';
+    const isPendingExit = state === 'EXECUTING_SELL' || state === 'VERIFYING_SELL';
+
+    const execPrice = trade?.entry.executionPrice || cfg.entryAmount;
+    const filledQty = trade?.entry.filledQuantity || (execPrice > 0 ? cfg.entryAmount / execPrice : 1);
+
+    if (existing) {
+      let changed = false;
+      if (isClosed && existing.status !== 'CLOSED') {
+        existing.status = 'CLOSED';
+        existing.closedAt = trade?.exit.executedAt || Date.now();
+        existing.closeReason = trade?.exit.reason || 'إغلاق من البوت';
+        if (trade?.exit.executedAt) {
+          existing.exit = {
+            executionPrice: trade.exit.executionPrice || undefined,
+            filledQuantity: trade.exit.filledQuantity || undefined,
+            executedAt: trade.exit.executedAt,
+            orderId: trade.exit.orderId,
+            reason: trade.exit.reason || 'إغلاق من البوت',
+          };
+        }
+        if (!existing.pnl && existing.entry.executionPrice && existing.exit?.executionPrice) {
+          existing.pnl = LevelCalculator.calculateNetPnL({
+            entryPrice: existing.entry.executionPrice,
+            exitPrice: existing.exit.executionPrice,
+            filledQuantity: existing.exit.filledQuantity || existing.entry.filledQuantity || 1,
+            entryCommissionQuote: existing.levelsPlan?.entryCommissionQuote || existing.costConfig.entryCostAmount,
+            exitCommissionQuote: existing.exit.executionPrice * (existing.exit.filledQuantity || 1) * existing.costConfig.exitCostRate,
+          });
+        }
+        changed = true;
+      } else if (isOpen && existing.status !== 'OPEN') {
+        existing.status = 'OPEN';
+        existing.openedAt = trade?.entry.executedAt || Date.now();
+        if (trade?.entry.executionPrice) {
+          existing.entry.executionPrice = trade.entry.executionPrice;
+          existing.entry.filledQuantity = trade.entry.filledQuantity;
+          existing.entry.executedAt = trade.entry.executedAt;
+          existing.entry.orderId = trade.entry.orderId;
+        }
+        if (!existing.levelsPlan && existing.entry.executionPrice && existing.entry.filledQuantity) {
+          existing.levelsPlan = LevelCalculator.buildTradeLevelsPlan({
+            entryPrice: existing.entry.executionPrice,
+            filledQuantity: existing.entry.filledQuantity,
+            costConfig: existing.costConfig,
+            stepPercent: cfg.tRuleConfig.targetValue || 2.0,
+          });
+          if (cfg.type === 'RANGE_BOT' || cfg.xSettings?.enabled) {
+            existing.xRecoveryPlan = XRecoveryManager.buildPlan({
+              entryPrice: existing.entry.executionPrice,
+              entryAmount: existing.requestedAmount,
+              xSettings: cfg.xSettings,
+            });
+          }
+        }
+        changed = true;
+      } else if (isPendingExit && existing.status !== 'PENDING_EXIT') {
+        existing.status = 'PENDING_EXIT';
+        changed = true;
+      } else if (isPendingEntry && existing.status !== 'PENDING_ENTRY' && existing.status !== 'OPEN' && existing.status !== 'CLOSED') {
+        existing.status = 'PENDING_ENTRY';
+        changed = true;
+      }
+
+      if (changed) {
+        this.notifyListeners();
+      }
+      return existing;
+    }
+
+    const tradeId = trade?.tradeId || `trd_adopt_${botId}_${Date.now()}`;
+    const initialCostConfig = sharedSymbolCostStore.resolveInitialCostConfig({
+      symbol: cfg.symbol,
+      entryAmount: cfg.entryAmount,
+    });
+
+    const managedTrade: ManagedTrade = {
+      tradeId,
+      botId: cfg.id,
+      symbol: cfg.symbol,
+      source: 'MANUAL',
+      botType: cfg.type === 'RANGE_BOT' ? 'RANGE_BOT' : 'DEAL_BOT',
+      status: isClosed ? 'CLOSED' : isPendingExit ? 'PENDING_EXIT' : isOpen ? 'OPEN' : isPendingEntry ? 'PENDING_ENTRY' : 'PENDING_ENTRY',
+      requestedAmount: cfg.entryAmount,
+      plannedPrice: trade?.entry.plannedPrice || null,
+      entry: {
+        requestedAmount: cfg.entryAmount,
+        plannedPrice: trade?.entry.plannedPrice || null,
+        executionPrice: trade?.entry.executionPrice,
+        filledQuantity: trade?.entry.filledQuantity,
+        executedAt: trade?.entry.executedAt,
+        orderId: trade?.entry.orderId,
+      },
+      exit: trade?.exit.executedAt ? {
+        executionPrice: trade.exit.executionPrice || undefined,
+        filledQuantity: trade.exit.filledQuantity || undefined,
+        executedAt: trade.exit.executedAt,
+        orderId: trade.exit.orderId,
+        reason: trade.exit.reason || 'إغلاق من البوت',
+      } : undefined,
+      costConfig: initialCostConfig,
+      createdAt: cycle?.startedAt || Date.now(),
+      openedAt: trade?.entry.executedAt,
+      closedAt: trade?.exit.executedAt,
+      closeReason: trade?.exit.reason,
+      notes: `تم ربط البوت «${cfg.name}» في دورة التداول الموحدة (الحالة: ${state}).`,
+    };
+
+    if (isOpen && execPrice && filledQty) {
+      managedTrade.levelsPlan = LevelCalculator.buildTradeLevelsPlan({
+        entryPrice: execPrice,
+        filledQuantity: filledQty,
+        costConfig: initialCostConfig,
+        stepPercent: cfg.tRuleConfig.targetValue || 2.0,
+      });
+
+      if (cfg.type === 'RANGE_BOT' || cfg.xSettings?.enabled) {
+        managedTrade.xRecoveryPlan = XRecoveryManager.buildPlan({
+          entryPrice: execPrice,
+          entryAmount: cfg.entryAmount,
+          xSettings: cfg.xSettings,
+        });
+      }
+    } else if (isClosed && trade?.exit.executionPrice) {
+      managedTrade.pnl = LevelCalculator.calculateNetPnL({
+        entryPrice: execPrice || trade.exit.executionPrice,
+        exitPrice: trade.exit.executionPrice,
+        filledQuantity: filledQty,
+        entryCommissionQuote: initialCostConfig.entryCostAmount,
+        exitCommissionQuote: trade.exit.executionPrice * filledQty * initialCostConfig.exitCostRate,
+      });
+    }
+
+    this.trades.set(tradeId, managedTrade);
+    this.notifyListeners();
+    return managedTrade;
   }
 
   public listTrades(): ManagedTrade[] {

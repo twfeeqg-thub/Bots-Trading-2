@@ -33,19 +33,6 @@ const ChartsView = dynamic(
   }
 );
 
-const BotManagementView = dynamic(
-  () => import('@/components/bots/BotManagementView').then((mod) => mod.BotManagementView),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center p-12 text-slate-400 text-sm gap-2">
-        <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-        <span>جاري تحميل نواة إدارة البوتات...</span>
-      </div>
-    ),
-  }
-);
-
 const TradeManagementView = dynamic(
   () => import('@/components/trades/TradeManagementView').then((mod) => mod.TradeManagementView),
   {
@@ -189,26 +176,9 @@ export default function HomePage() {
 
               <button
                 type="button"
-                onClick={() => setActiveTab('bots')}
-                className={`px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'bots'
-                    ? isLight
-                      ? 'bg-emerald-600 text-white shadow-xs font-semibold'
-                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                    : isLight
-                    ? 'text-slate-600 hover:text-slate-900'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Bot className="w-3.5 h-3.5" />
-                <span>Bot Management (نشط)</span>
-              </button>
-
-              <button
-                type="button"
                 onClick={() => setActiveTab('execution')}
                 className={`px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'execution'
+                  activeTab === 'execution' || activeTab === 'bots'
                     ? isLight
                       ? 'bg-emerald-600 text-white shadow-xs font-semibold'
                       : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
@@ -218,7 +188,7 @@ export default function HomePage() {
                 }`}
               >
                 <TrendingUp className="w-3.5 h-3.5" />
-                <span>Trade Manager (نشط)</span>
+                <span>دورة التداول الموحدة (الصفقات والبوتات)</span>
               </button>
 
               <button
@@ -376,11 +346,7 @@ export default function HomePage() {
               onBackToScanner={() => setActiveTab('scanner')}
             />
           </section>
-        ) : activeTab === 'bots' ? (
-          <section id="bots-main-section">
-            <BotManagementView />
-          </section>
-        ) : activeTab === 'execution' ? (
+        ) : activeTab === 'bots' || activeTab === 'execution' ? (
           <section id="trades-main-section">
             <TradeManagementView
               initialSymbol={selectedAssetForTrade?.symbol}
@@ -396,7 +362,7 @@ export default function HomePage() {
             <GlobalMarketsView
               onNavigateToScanner={() => setActiveTab('scanner')}
               onNavigateToCharts={() => setActiveTab('charts')}
-              onNavigateToBots={() => setActiveTab('bots')}
+              onNavigateToBots={() => setActiveTab('execution')}
             />
           </section>
         )}
@@ -406,7 +372,7 @@ export default function HomePage() {
       <nav id="bottom-navigation" className={`fixed bottom-0 left-0 right-0 z-50 backdrop-blur-md border-t px-2 py-1.5 md:hidden transition-colors ${
         isLight ? 'bg-white/95 border-slate-200' : 'bg-slate-900/95 border-slate-800'
       }`}>
-        <div className="grid grid-cols-6 gap-0.5">
+        <div className="grid grid-cols-5 gap-0.5">
           <button
             id="nav-tab-scanner"
             type="button"
@@ -436,31 +402,17 @@ export default function HomePage() {
           </button>
 
           <button
-            id="nav-tab-bots"
-            type="button"
-            onClick={() => setActiveTab('bots')}
-            className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-lg text-[10px] font-medium transition-colors ${
-              activeTab === 'bots' 
-                ? isLight ? 'text-emerald-700 bg-emerald-50 font-bold' : 'text-emerald-400 bg-emerald-500/10'
-                : isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Bot className="w-4.5 h-4.5 mb-0.5" />
-            <span>البوتات</span>
-          </button>
-
-          <button
             id="nav-tab-execution"
             type="button"
             onClick={() => setActiveTab('execution')}
             className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-lg text-[10px] font-medium transition-colors ${
-              activeTab === 'execution' 
+              activeTab === 'execution' || activeTab === 'bots'
                 ? isLight ? 'text-emerald-700 bg-emerald-50 font-bold' : 'text-emerald-400 bg-emerald-500/10'
                 : isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <TrendingUp className="w-4.5 h-4.5 mb-0.5" />
-            <span>الصفقات</span>
+            <span>التداول الموحد</span>
           </button>
 
           <button

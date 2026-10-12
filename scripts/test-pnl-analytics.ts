@@ -96,6 +96,12 @@ async function runTestSuite() {
   // -------------------------------------------------------------
   console.log('\n--- Part 2: End-to-End DEAL_BOT (No Recovery) ---');
 
+  const { sharedMarketDataStore } = await import('../lib/market-data');
+  const marketNow = Date.now();
+  sharedMarketDataStore.updatePrice('BTCUSDT', 50000, marketNow, marketNow);
+  sharedMarketDataStore.updatePrice('ETHUSDT', 2000, marketNow, marketNow);
+  sharedMarketDataStore.updatePrice('SOLUSDT', 100, marketNow, marketNow);
+
   const dealBotTrade = await tradeManager.createTradeFromManual({
     symbol: 'BTCUSDT',
     entryAmount: 100,
@@ -132,6 +138,8 @@ async function runTestSuite() {
   // Part 3: RANGE_BOT with Single Recovery (X1)
   // -------------------------------------------------------------
   console.log('\n--- Part 3: RANGE_BOT with Single Recovery (X1) ---');
+
+  sharedMarketDataStore.updatePrice('ETHUSDT', 2000, Date.now(), Date.now());
 
   const rangeBot1 = await tradeManager.createTradeFromManual({
     symbol: 'ETHUSDT',
@@ -175,6 +183,8 @@ async function runTestSuite() {
   // -------------------------------------------------------------
   console.log('\n--- Part 4: RANGE_BOT with Multiple Dynamic Recoveries (X1 through X4+) ---');
 
+  sharedMarketDataStore.updatePrice('SOLUSDT', 100, Date.now(), Date.now());
+
   const multiRangeTrade = await tradeManager.createTradeFromManual({
     symbol: 'SOLUSDT',
     entryAmount: 50,
@@ -191,20 +201,20 @@ async function runTestSuite() {
     manualExitCostRate: 0.001,
   });
 
-  // Execute X1 at 97.5
-  await tradeManager.executeRecoveryBuy(multiRangeTrade.tradeId, 1);
+  // Trigger X1 at 97.4 (trigger price is 97.5)
+  await tradeManager.onMarketPriceTick('SOLUSDT', 97.4);
   assert(multiRangeTrade.xRecoveryPlan?.executedLevelsCount === 1, 'X1 executed');
 
-  // Execute X2 at 95.0
-  await tradeManager.executeRecoveryBuy(multiRangeTrade.tradeId, 2);
+  // Trigger X2 at 94.9 (trigger price is 95.0)
+  await tradeManager.onMarketPriceTick('SOLUSDT', 94.9);
   assert(multiRangeTrade.xRecoveryPlan?.executedLevelsCount === 2, 'X2 executed');
 
-  // Execute X3 at 92.5
-  await tradeManager.executeRecoveryBuy(multiRangeTrade.tradeId, 3);
+  // Trigger X3 at 92.4 (trigger price is 92.5)
+  await tradeManager.onMarketPriceTick('SOLUSDT', 92.4);
   assert(multiRangeTrade.xRecoveryPlan?.executedLevelsCount === 3, 'X3 executed');
 
-  // Execute X4 at 90.0 (Proves no hardcoded 3 levels ceiling!)
-  await tradeManager.executeRecoveryBuy(multiRangeTrade.tradeId, 4);
+  // Trigger X4 at 89.9 (trigger price is 90.0) (Proves no hardcoded 3 levels ceiling!)
+  await tradeManager.onMarketPriceTick('SOLUSDT', 89.9);
   assert(multiRangeTrade.xRecoveryPlan?.executedLevelsCount === 4, 'X4 executed (Continuous unbounded generation!)');
 
   const compiledMulti = analyticsService.compileTradeAnalytics(multiRangeTrade);

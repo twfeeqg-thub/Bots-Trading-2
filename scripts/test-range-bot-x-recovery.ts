@@ -224,6 +224,11 @@ async function runTestSuite() {
   // ----------------------------------------------------------------------------
   console.log('\n--- Part 5: End-to-End RANGE_BOT with Dynamic Unbounded X ---');
 
+  // Inject fresh market price for NEARUSDT so MockBinanceTransport can execute the buy order
+  const { sharedMarketDataStore } = await import('../lib/market-data');
+  const now = Date.now();
+  sharedMarketDataStore.updatePrice('NEARUSDT', 10.0, now, now);
+
   // Create RANGE_BOT trade with user settings: step 1.0%, ratio 1.1, NO maxLevels limit
   const managedRange = await sharedTradeManager.createTradeFromManual({
     symbol: 'NEARUSDT',

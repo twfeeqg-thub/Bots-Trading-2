@@ -35,6 +35,9 @@ import {
   Edit2,
   Save,
   X,
+  Bot,
+  Square,
+  Lock,
 } from 'lucide-react';
 import {
   ConfirmedSymbolCost,
@@ -46,17 +49,22 @@ import {
 } from '@/lib/trade-manager/types';
 import { LevelCalculator } from '@/lib/trade-manager/level-calculator';
 import { sharedMarketDataStore, MarketPriceRecord } from '@/lib/market-data';
+import { BotSummaryDTO } from '@/lib/engine/types';
+import { BotState, BOT_STATE_METADATA } from '@/lib/bots/types';
 
 interface TradeManagementViewProps {
   initialSymbol?: string | null;
   initialPrice?: number | null;
+  onNavigateToBots?: () => void;
 }
 
 export function TradeManagementView({
   initialSymbol,
   initialPrice,
+  onNavigateToBots,
 }: TradeManagementViewProps) {
   const [trades, setTrades] = useState<ManagedTrade[]>([]);
+  const [bots, setBots] = useState<Record<string, BotSummaryDTO>>({});
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
   const [symbolCosts, setSymbolCosts] = useState<Record<string, ConfirmedSymbolCost>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -73,6 +81,7 @@ export function TradeManagementView({
 
   // Bot Type & X/Recovery Settings
   const [botType, setBotType] = useState<'DEAL_BOT' | 'RANGE_BOT'>('DEAL_BOT');
+  const [entryExecutionMode, setEntryExecutionMode] = useState<'IMMEDIATE_MARKET' | 'WAIT_FOR_ENTRY'>('IMMEDIATE_MARKET');
   const [xMaxLevels, setXMaxLevels] = useState<string>('');
   const [xStepPercent, setXStepPercent] = useState<string>('');
   const [xRecoveryRatio, setXRecoveryRatio] = useState<string>('');
@@ -117,12 +126,15 @@ export function TradeManagementView({
     }
   }, [initialSymbol, initialPrice]);
 
-  // Fetch trades and symbol costs from API
-  const fetchTrades = useCallback(async () => {
+  // Fetch trades, symbol costs, and engine bots
+  const fetchTradesAndBots = useCallback(async () => {
     try {
-      const res = await fetch('/api/trades');
-      if (res.ok) {
-        const data = await res.json();
+      const [tradesRes, botsRes] = await Promise.all([
+        fetch('/api/trades'),
+        fetch('/api/engine/bots'),
+      ]);
+      if (tradesRes.ok) {
+        const data = await tradesRes.json();
         if (data.success && Array.isArray(data.trades)) {
           setTrades(data.trades);
           if (data.symbolCosts) {
@@ -133,6 +145,16 @@ export function TradeManagementView({
           );
         }
       }
+      if (botsRes.ok) {
+        const botsData = await botsRes.json();
+        if (botsData.success && Array.isArray(botsData.bots)) {
+          const map: Record<string, BotSummaryDTO> = {};
+          botsData.bots.forEach((b: BotSummaryDTO) => {
+            map[b.id] = b;
+          });
+          setBots(map);
+        }
+      }
     } catch {
       // Non-fatal
     } finally {
@@ -140,15 +162,20 @@ export function TradeManagementView({
     }
   }, []);
 
-  // Poll trades every 3 seconds
+  const fetchTrades = fetchTradesAndBots;
+
+  // Poll trades and bots every 3 seconds
   useEffect(() => {
     let isMounted = true;
     const load = async () => {
       try {
-        const res = await fetch('/api/trades');
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted && data.success && Array.isArray(data.trades)) {
+        const [tradesRes, botsRes] = await Promise.all([
+          fetch('/api/trades'),
+          fetch('/api/engine/bots'),
+        ]);
+        if (tradesRes.ok && isMounted) {
+          const data = await tradesRes.json();
+          if (data.success && Array.isArray(data.trades)) {
             setTrades(data.trades);
             if (data.symbolCosts) {
               setSymbolCosts(data.symbolCosts);
@@ -156,6 +183,16 @@ export function TradeManagementView({
             setSelectedTradeId((prev) =>
               prev ? prev : data.trades.length > 0 ? data.trades[0].tradeId : null
             );
+          }
+        }
+        if (botsRes.ok && isMounted) {
+          const botsData = await botsRes.json();
+          if (botsData.success && Array.isArray(botsData.bots)) {
+            const map: Record<string, BotSummaryDTO> = {};
+            botsData.bots.forEach((b: BotSummaryDTO) => {
+              map[b.id] = b;
+            });
+            setBots(map);
           }
         }
       } catch {
@@ -172,6 +209,29 @@ export function TradeManagementView({
       clearInterval(interval);
     };
   }, []);
+
+  // Execute Bot Engine Action (Start, Stop, Advance, Verify, Ambiguous)
+  const handleEngineAction = async (botId: string, action: string, payload?: Record<string, unknown>) => {
+    setIsActionLoading(true);
+    try {
+      const res = await fetch(`/api/engine/bots/${botId}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...payload }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback(`✓ تم تنفيذ أمر المحرك «${action}» بنجاح`, 'success');
+        await fetchTradesAndBots();
+      } else {
+        showFeedback(data.error || `فشل تنفيذ أمر المحرك ${action}`, 'error');
+      }
+    } catch (err: unknown) {
+      showFeedback(`خطأ في الاتصال: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
 
   // Listen to live prices from Central Market Data Store
   useEffect(() => {
@@ -226,15 +286,23 @@ export function TradeManagementView({
                 }
               : undefined,
           initialStopLossPercent: manualStopLoss ? parseFloat(manualStopLoss) : undefined,
+          immediateEntry: entryExecutionMode === 'IMMEDIATE_MARKET',
         }),
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
-        showFeedback(
-          `✓ تم فتح الصفقة بنجاح على ${data.trade.symbol}: بمبلغ ${data.trade.entry.requestedAmount} USDT وسعر ${data.trade.entry.executionPrice} USDT`,
-          'success'
-        );
+        if (entryExecutionMode === 'IMMEDIATE_MARKET') {
+          showFeedback(
+            `✓ تم تنفيذ الشراء وفتح الصفقة بنجاح على ${data.trade.symbol}: بمبلغ ${data.trade.entry.requestedAmount} USDT وسعر ${data.trade.entry.executionPrice} USDT`,
+            'success'
+          );
+        } else {
+          showFeedback(
+            `✓ تم تهيئة البوت والصفقة بنجاح على ${data.trade.symbol} بمبلغ ${data.trade.requestedAmount} USDT في حالة انتظار الدخول (WAITING_FOR_ENTRY)`,
+            'success'
+          );
+        }
         setSelectedTradeId(data.trade.tradeId);
         await fetchTrades();
       } else {
@@ -498,31 +566,61 @@ export function TradeManagementView({
             </h3>
           </div>
 
-          {/* Bot Type Selection */}
-          <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800">
-            <button
-              type="button"
-              onClick={() => setBotType('DEAL_BOT')}
-              className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${
-                botType === 'DEAL_BOT'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              صفقة عادية (DEAL_BOT)
-            </button>
-            <button
-              type="button"
-              onClick={() => setBotType('RANGE_BOT')}
-              className={`px-3 py-1 text-xs font-bold rounded-md transition-colors flex items-center gap-1 ${
-                botType === 'RANGE_BOT'
-                  ? 'bg-purple-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Repeat className="w-3 h-3" />
-              <span>مسار عرضي (RANGE_BOT + X)</span>
-            </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Entry Execution Mode */}
+            <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setEntryExecutionMode('IMMEDIATE_MARKET')}
+                className={`px-2.5 py-1 text-xs font-bold rounded-md transition-colors flex items-center gap-1 ${
+                  entryExecutionMode === 'IMMEDIATE_MARKET'
+                    ? 'bg-emerald-600 text-slate-950 shadow-sm font-bold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Zap className="w-3 h-3" />
+                <span>شراء فوري (Market)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setEntryExecutionMode('WAIT_FOR_ENTRY')}
+                className={`px-2.5 py-1 text-xs font-bold rounded-md transition-colors flex items-center gap-1 ${
+                  entryExecutionMode === 'WAIT_FOR_ENTRY'
+                    ? 'bg-amber-600 text-slate-950 shadow-sm font-bold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Clock className="w-3 h-3" />
+                <span>انتظار إشارة (Wait)</span>
+              </button>
+            </div>
+
+            {/* Bot Type Selection */}
+            <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setBotType('DEAL_BOT')}
+                className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${
+                  botType === 'DEAL_BOT'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                صفقة عادية (DEAL_BOT)
+              </button>
+              <button
+                type="button"
+                onClick={() => setBotType('RANGE_BOT')}
+                className={`px-3 py-1 text-xs font-bold rounded-md transition-colors flex items-center gap-1 ${
+                  botType === 'RANGE_BOT'
+                    ? 'bg-purple-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Repeat className="w-3 h-3" />
+                <span>مسار عرضي (RANGE_BOT + X)</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -715,10 +813,18 @@ export function TradeManagementView({
                 <button
                   type="submit"
                   disabled={isActionLoading}
-                  className="w-full py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-slate-100 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50"
+                  className={`w-full py-2 px-3 rounded-lg text-slate-950 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50 ${
+                    entryExecutionMode === 'IMMEDIATE_MARKET'
+                      ? 'bg-emerald-500 hover:bg-emerald-400'
+                      : 'bg-amber-500 hover:bg-amber-400'
+                  }`}
                 >
-                  <Zap className="w-3.5 h-3.5" />
-                  <span>فتح الصفقة وبدء المتابعة</span>
+                  <Zap className="w-3.5 h-3.5 fill-current" />
+                  <span>
+                    {entryExecutionMode === 'IMMEDIATE_MARKET'
+                      ? 'فتح الصفقة وتنفيذ الشراء الفوري (Market)'
+                      : 'تهيئة البوت والانتظار (WAITING_FOR_ENTRY)'}
+                  </span>
                 </button>
               </div>
             </div>
@@ -822,9 +928,185 @@ export function TradeManagementView({
 
         {/* Right Side: Selected Trade Detailed Plan & Live Ladder (8 cols) */}
         <div className="lg:col-span-8">
-          {selectedTrade && plan ? (
+          {selectedTrade ? (
             <div className="space-y-4">
-              {/* Card 1: Key Level Indicators Bar */}
+              {/* Card 0: Integrated Bot Core Lifecycle & 11-State Machine Stepper */}
+              {(() => {
+                const associatedBot = selectedTrade.botId ? bots[selectedTrade.botId] : null;
+                const botState = associatedBot?.currentState;
+                const stateMeta = botState ? BOT_STATE_METADATA[botState] : null;
+
+                return (
+                  associatedBot && (
+                    <div className="bg-slate-900/90 border border-indigo-500/30 rounded-xl p-5 space-y-3.5 shadow-md">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-2 rounded-lg bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+                            <Bot className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="font-bold text-sm text-slate-100">
+                                {associatedBot.name}
+                              </h4>
+                              <span className="font-mono text-[10px] text-slate-400">
+                                ({associatedBot.id})
+                              </span>
+                              {stateMeta && (
+                                <span
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border ${stateMeta.badgeColor}`}
+                                >
+                                  #{stateMeta.index} - {stateMeta.ar}
+                                </span>
+                              )}
+                              <span className="text-[10px] px-1.5 py-0.5 rounded font-mono bg-slate-950 text-slate-400 border border-slate-800">
+                                دورة #{associatedBot.cycleNumber}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                              {stateMeta?.description || 'آلة الحالات الحتمية للبوت'} • قفل الأوامر: نشط لحماية الصفقات
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Interactive Bot Operational Controls */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {botState === 'STOPPED' && (
+                            <button
+                              type="button"
+                              onClick={() => handleEngineAction(associatedBot.id, 'start')}
+                              disabled={isActionLoading}
+                              className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                            >
+                              <Play className="w-3.5 h-3.5 fill-current" />
+                              <span>بدء دورة البوت (Start)</span>
+                            </button>
+                          )}
+
+                          {(botState === 'WAITING_FOR_ENTRY' || botState === 'MONITORING_ENTRY') && (
+                            <button
+                              type="button"
+                              onClick={() => handleEngineAction(associatedBot.id, 'buy')}
+                              disabled={isActionLoading}
+                              className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                            >
+                              <Play className="w-3.5 h-3.5 fill-current" />
+                              <span>تنفيذ أمر الشراء الفوري (MARKET Buy)</span>
+                            </button>
+                          )}
+
+                          {(botState === 'VERIFYING_BUY' ||
+                            botState === 'VERIFYING_SELL' ||
+                            (botState as string) === 'AMBIGUOUS' ||
+                            selectedTrade.status === 'PENDING_ENTRY' ||
+                            selectedTrade.status === 'PENDING_EXIT') && (
+                            <button
+                              type="button"
+                              onClick={() => handleEngineAction(associatedBot.id, 'verify')}
+                              disabled={isActionLoading}
+                              className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50 animate-pulse"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" />
+                              <span>استعلام التحقق (SEND → VERIFY)</span>
+                            </button>
+                          )}
+
+                          {botState !== 'STOPPED' && botState !== 'POSITION_CLOSED' && (
+                            <button
+                              type="button"
+                              onClick={() => handleEngineAction(associatedBot.id, 'stop', { reason: 'إيقاف يدوي من شاشة التداول الموحدة' })}
+                              disabled={isActionLoading}
+                              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-xs border border-slate-700 transition-colors disabled:opacity-50 flex items-center gap-1"
+                              title="إيقاف البوت"
+                            >
+                              <Square className="w-3 h-3" />
+                              <span>إيقاف</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 11 States Progression Stepper */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px] text-slate-400">
+                          <span className="font-semibold text-slate-300">
+                            دورة حياة آلة الحالات (Bot Core 11 States):
+                          </span>
+                          <span className="font-mono text-[10px] text-slate-500">
+                            بروتوكول حتمي: SEND → VERIFY • منع تكرار الأوامر
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-11 gap-1 text-center">
+                          {(
+                            [
+                              'WAITING_FOR_ENTRY',
+                              'MONITORING_ENTRY',
+                              'ENTRY_TRIGGERED',
+                              'EXECUTING_BUY',
+                              'VERIFYING_BUY',
+                              'POSITION_OPEN',
+                              'EXECUTING_SELL',
+                              'VERIFYING_SELL',
+                              'POSITION_CLOSED',
+                              'STOPPED',
+                              'ERROR',
+                            ] as BotState[]
+                          ).map((st) => {
+                            const isCurrent = botState === st;
+                            const meta = BOT_STATE_METADATA[st];
+                            return (
+                              <div
+                                key={st}
+                                className={`p-1.5 rounded border text-center transition-all ${
+                                  isCurrent
+                                    ? 'bg-slate-950 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500/40 shadow-xs'
+                                    : 'bg-slate-950/40 border-slate-800/80 text-slate-500'
+                                }`}
+                              >
+                                <div className="text-[9px] font-mono font-bold">#{meta.index}</div>
+                                <div className="text-[10px] font-semibold truncate mt-0.5">{meta.ar}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* AMBIGUOUS Warning Banner */}
+                      {(botState === 'VERIFYING_BUY' ||
+                        botState === 'VERIFYING_SELL' ||
+                        (botState as string) === 'AMBIGUOUS' ||
+                        selectedTrade.status === 'PENDING_ENTRY' ||
+                        selectedTrade.status === 'PENDING_EXIT') && (
+                        <div className="p-3 rounded-lg border border-amber-500/40 bg-amber-950/30 text-amber-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                            <div>
+                              <span className="font-bold">حالة تحقق نشطة (SEND → VERIFY):</span>
+                              <p className="text-[11px] text-amber-300/80 mt-0.5">
+                                تم إرسال الأمر إلى Binance ويمنع قفل الأوامر إرسال أمر ثانٍ لتجنب تكرار الصفقات.
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleEngineAction(associatedBot.id, 'verify')}
+                            disabled={isActionLoading}
+                            className="px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shrink-0 flex items-center gap-1 transition-colors"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span>استعلام التأكيد الآن</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                );
+              })()}
+
+              {plan ? (
+                <>
+                  {/* Card 1: Key Level Indicators Bar */}
               <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
                   <div>
@@ -845,6 +1127,14 @@ export function TradeManagementView({
                       متوسط سعر الدخول: {selectedTrade.entry.executionPrice} USDT • الكمية الإجمالية:{' '}
                       {selectedTrade.entry.filledQuantity} • أمر الدخول: {selectedTrade.entry.orderId}
                     </p>
+                    {selectedTrade.botId && (
+                      <div className="flex items-center gap-2 mt-1.5 text-[11px] text-slate-400">
+                        <span className="flex items-center gap-1 font-mono text-indigo-300">
+                          <Bot className="w-3.5 h-3.5" />
+                          <span>مرتبطة بـ Bot Engine: {selectedTrade.botId}</span>
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -1799,6 +2089,108 @@ export function TradeManagementView({
                       </>
                     );
                   })()}
+                </div>
+              )}
+                </>
+              ) : (
+                /* Card: Pending Entry Information & Execution Controls */
+                <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-bold text-slate-100">
+                          صفقة {selectedTrade.symbol} ({selectedTrade.tradeId})
+                        </h3>
+                        <span className="text-xs px-2 py-0.5 rounded font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                          {selectedTrade.status}
+                        </span>
+                        {selectedTrade.botType === 'RANGE_BOT' && (
+                          <span className="text-xs px-2 py-0.5 rounded font-mono bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                            مسار عرضي (RANGE)
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 font-mono mt-1">
+                        المبلغ المطلوب: {selectedTrade.requestedAmount} USDT • العملة: {selectedTrade.symbol}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {selectedTrade.botId && bots[selectedTrade.botId] && (
+                        <button
+                          type="button"
+                          onClick={() => handleEngineAction(selectedTrade.botId!, bots[selectedTrade.botId].currentState === 'STOPPED' ? 'start' : 'buy')}
+                          disabled={isActionLoading}
+                          className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50 shadow-sm"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-current" />
+                          <span>{bots[selectedTrade.botId].currentState === 'STOPPED' ? 'بدء تشغيل البوت' : 'تنفيذ الشراء الفوري (MARKET Buy)'}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-lg bg-slate-950/80 border border-slate-800/80 text-xs space-y-2 text-slate-300">
+                    <div className="font-semibold text-slate-200 flex items-center gap-1.5">
+                      <Info className="w-4 h-4 text-indigo-400" />
+                      <span>حالة انتظار تنفيذ الدخول (Pending Entry):</span>
+                    </div>
+                    <p className="text-slate-400 leading-relaxed text-[11px]">
+                      البوت في دورة التداول الموحدة جاهز للدخول. عند تنفيذ الشراء الفوري واكتمال الامتلاء، سيتم تلقائيًا بناء سلم أهداف T وT0 وسعر التعادل بعد العمولات، وتفعيل مستويات الحماية والمسار العرضي X ومتابعة الأرباح اللحظية.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Card: Final Financial Settlement Summary when Closed */}
+              {selectedTrade.status === 'CLOSED' && selectedTrade.pnl && (
+                <div className="bg-slate-900/90 border border-emerald-500/40 rounded-xl p-5 space-y-4 shadow-lg">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`p-2 rounded-lg ${selectedTrade.pnl.isProfitable ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'}`}>
+                        <CheckCircle2 className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-100">
+                          تم إغلاق الصفقة والتسوية المالية المؤكدة (Final Settlement)
+                        </h4>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          سبب الإغلاق: {selectedTrade.closeReason || selectedTrade.exit?.reason || 'إغلاق مؤكد'} • التوقيت: {new Date(selectedTrade.closedAt || Date.now()).toLocaleTimeString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold font-mono border ${
+                      selectedTrade.pnl.outcome === 'WIN'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                        : selectedTrade.pnl.outcome === 'BREAKEVEN'
+                        ? 'bg-slate-800 text-slate-300 border-slate-700'
+                        : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                    }`}>
+                      {selectedTrade.pnl.outcome}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-xs">
+                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                      <span className="text-[10px] text-slate-500 block">سعر الدخول المنفذ:</span>
+                      <span className="font-bold text-slate-200">{selectedTrade.entry.executionPrice} USDT</span>
+                    </div>
+                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                      <span className="text-[10px] text-slate-500 block">سعر الخروج المنفذ:</span>
+                      <span className="font-bold text-slate-200">{selectedTrade.exit?.executionPrice || '—'} USDT</span>
+                    </div>
+                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                      <span className="text-[10px] text-slate-500 block">إجمالي العمولات الفعلية:</span>
+                      <span className="font-bold text-rose-400">-{selectedTrade.pnl.totalFeesQuote} USDT</span>
+                    </div>
+                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                      <span className="text-[10px] text-slate-500 block">صافي الربح/الخسارة الحقيقي:</span>
+                      <span className={`font-bold ${selectedTrade.pnl.isProfitable ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {selectedTrade.pnl.netReturnQuote > 0 ? '+' : ''}{selectedTrade.pnl.netReturnQuote} USDT ({selectedTrade.pnl.netReturnPercent}%)
+                      </span>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
