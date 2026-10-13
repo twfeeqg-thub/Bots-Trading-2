@@ -15,6 +15,8 @@ import {
   ManagedTrade,
   TradeCostConfig,
   TradeCreationSource,
+  ManualApprovedTradeValues,
+  BinanceConfirmedTradeValues,
 } from './types';
 import { LevelCalculator } from './level-calculator';
 import { sharedSymbolCostStore } from './symbol-cost-store';
@@ -70,10 +72,15 @@ export class TradeManager {
       stepPercent: params.stepPercent,
       manualEntryCost: params.manualEntryCost,
       manualExitCostRate: params.manualExitCostRate,
+      manualEntryFeePercent: params.manualEntryFeePercent,
+      manualEntryFeeAmount: params.manualEntryFeeAmount,
+      manualExitFeePercent: params.manualExitFeePercent,
+      manualExitFeeAmount: params.manualExitFeeAmount,
       botType: params.botType,
       xSettings: params.xSettings,
       initialStopLossPercent: params.initialStopLossPercent,
       immediateEntry: params.immediateEntry,
+      isPreEntryRecovery: params.isPreEntryRecovery,
     });
   }
 
@@ -89,10 +96,15 @@ export class TradeManager {
       stepPercent: params.stepPercent,
       manualEntryCost: params.manualEntryCost,
       manualExitCostRate: params.manualExitCostRate,
+      manualEntryFeePercent: params.manualEntryFeePercent,
+      manualEntryFeeAmount: params.manualEntryFeeAmount,
+      manualExitFeePercent: params.manualExitFeePercent,
+      manualExitFeeAmount: params.manualExitFeeAmount,
       botType: params.botType,
       xSettings: params.xSettings,
       initialStopLossPercent: params.initialStopLossPercent,
       immediateEntry: params.immediateEntry,
+      isPreEntryRecovery: params.isPreEntryRecovery,
     });
   }
 
@@ -110,10 +122,15 @@ export class TradeManager {
     stepPercent?: number;
     manualEntryCost?: number;
     manualExitCostRate?: number;
+    manualEntryFeePercent?: number;
+    manualEntryFeeAmount?: number;
+    manualExitFeePercent?: number;
+    manualExitFeeAmount?: number;
     botType?: 'DEAL_BOT' | 'RANGE_BOT';
     xSettings?: import('@/lib/bots/types').XRangeSettings;
     initialStopLossPercent?: number;
     immediateEntry?: boolean;
+    isPreEntryRecovery?: boolean;
   }): Promise<ManagedTrade> {
     const tradeId = `trd_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const botId = `bot_trade_${params.symbol.toLowerCase()}_${Date.now().toString(36)}`;
@@ -133,6 +150,10 @@ export class TradeManager {
       entryAmount: params.entryAmount,
       manualEntryCost: params.manualEntryCost,
       manualExitCostRate: params.manualExitCostRate,
+      manualEntryFeePercent: params.manualEntryFeePercent,
+      manualEntryFeeAmount: params.manualEntryFeeAmount,
+      manualExitFeePercent: params.manualExitFeePercent,
+      manualExitFeeAmount: params.manualExitFeeAmount,
     });
 
     // Create underlying bot in BotEngine to anchor state machine and cycle
@@ -156,6 +177,28 @@ export class TradeManager {
       xSettings,
     });
 
+    const manualStep = params.stepPercent !== undefined && params.stepPercent > 0 ? params.stepPercent : 2.0;
+    const manualPrice = params.entryPrice || null;
+    const manualEstimatedQty =
+      manualPrice && manualPrice > 0 && params.entryAmount > 0
+        ? Number((params.entryAmount / manualPrice).toFixed(8))
+        : null;
+
+    const manualApprovedValues: ManualApprovedTradeValues = {
+      manualAmount: params.entryAmount !== undefined && params.entryAmount > 0 ? params.entryAmount : 100,
+      manualPlannedPrice: manualPrice,
+      manualEstimatedQuantity: manualEstimatedQty,
+      manualEntryFeePercent: params.manualEntryFeePercent ?? initialCostConfig.entryFeePercent,
+      manualEntryFeeAmount: params.manualEntryFeeAmount ?? initialCostConfig.entryFeeAmount,
+      manualExitFeePercent: params.manualExitFeePercent ?? initialCostConfig.exitFeePercent,
+      manualExitFeeAmount: params.manualExitFeeAmount ?? initialCostConfig.exitFeeAmount,
+      manualEntryFee: initialCostConfig.entryCostAmount,
+      manualExitFeeRate: initialCostConfig.exitCostRate,
+      manualStepPercent: manualStep,
+      manualStopLossPercent: params.initialStopLossPercent ?? 0,
+      approvedAt: now,
+    };
+
     const trade: ManagedTrade = {
       tradeId,
       botId,
@@ -170,6 +213,8 @@ export class TradeManager {
         plannedPrice: params.entryPrice || null,
       },
       costConfig: initialCostConfig,
+      manualValues: manualApprovedValues,
+      confirmedValues: null,
       createdAt: now,
       notes: `تم إنشاء الصفقة (${initialCostConfig.description}). النوع: ${botType}. المصدر الأولي للتكلفة: ${initialCostConfig.source}`,
     };
@@ -177,8 +222,32 @@ export class TradeManager {
     this.trades.set(tradeId, trade);
     this.notifyListeners();
 
-    // If immediateEntry is not explicitly false, execute entry immediately
-    if (params.immediateEntry !== false) {
+    // Check if Pre-Entry Recovery monitoring is requested
+    const shouldMonitorRecovery =
+      params.isPreEntryRecovery ||
+      (params.immediateEntry === false && (botType === 'RANGE_BOT' || xSettings?.enabled));
+
+    if (shouldMonitorRecovery) {
+      // Start bot to WAITING_FOR_ENTRY so it's ready for monitoring ticks
+      try {
+        await engine.startBot(botId);
+      } catch {}
+
+      const watchPrice =
+        params.entryPrice && params.entryPrice > 0 ? params.entryPrice : 100;
+      const stepPercent = xSettings?.stepPercent || params.stepPercent || 2.0;
+
+      trade.preEntryXMonitor = XRecoveryManager.buildPreEntryMonitor({
+        watchPrice,
+        stepPercent,
+        requiredRecoveries: 3,
+        enabled: true,
+      });
+
+      trade.notes = `مراقبة الدخول بالتعافي (X) نشطة: سعر بدء المراقبة ${watchPrice} USDT. يُمنع الشراء أثناء الهبوط، والشرط استعادة 3 مستويات X متتالية صاعدة.`;
+      this.notifyListeners();
+    } else if (params.immediateEntry !== false) {
+      // If immediateEntry is not explicitly false, execute entry immediately
       await this.executeTradeEntry(tradeId, xSettings, params.initialStopLossPercent);
     } else {
       // Start bot to WAITING_FOR_ENTRY so it's ready for manual trigger
@@ -256,6 +325,8 @@ export class TradeManager {
 
       trade.status = 'OPEN';
       trade.openedAt = Date.now();
+      trade.positionManager = 'UNIFIED_T_LADDER';
+      trade.isExiting = false;
       trade.entry = {
         requestedAmount: trade.requestedAmount,
         plannedPrice: trade.plannedPrice,
@@ -263,6 +334,23 @@ export class TradeManager {
         filledQuantity: filledQty,
         executedAt: buyResult.timestamp,
         orderId: buyResult.orderId,
+      };
+      trade.initialQuantity = filledQty;
+      trade.remainingQuantity = filledQty;
+      trade.soldQuantity = 0;
+      trade.partialExits = [];
+
+      // Phase 4: Explicit separation: Record Binance Confirmed Actual Values
+      // Manual values (trade.manualValues) are preserved and NEVER replaced or overwritten
+      trade.confirmedValues = {
+        confirmedPrice: filledPrice,
+        confirmedQuantity: filledQty,
+        confirmedQuoteAmount: realQuoteSpent,
+        confirmedEntryFee: realFeeAmount,
+        orderId: buyResult.orderId,
+        confirmedAt: buyResult.timestamp || Date.now(),
+        exchangeSource: 'BINANCE_ACTUAL',
+        isFeeDeduplicated: true,
       };
 
       // Construct mathematical T-levels plan with the confirmed real costs
@@ -443,7 +531,7 @@ export class TradeManager {
    */
   public async executeRecoveryBuy(tradeId: string, levelIndex: number): Promise<ManagedTrade> {
     const trade = this.trades.get(tradeId);
-    if (!trade || !trade.xRecoveryPlan || trade.status !== 'OPEN') return trade!;
+    if (!trade || !trade.xRecoveryPlan || trade.status !== 'OPEN' || trade.isExiting) return trade!;
 
     let level = trade.xRecoveryPlan.levels.find((l) => l.levelIndex === levelIndex);
     if (!level) {
@@ -494,6 +582,8 @@ export class TradeManager {
       // Update trade entry execution price and quantity with aggregated values
       trade.entry.executionPrice = aggregated.averageEntryPrice;
       trade.entry.filledQuantity = aggregated.totalQuantity;
+      trade.initialQuantity = aggregated.totalQuantity;
+      trade.remainingQuantity = Number(((trade.remainingQuantity || 0) + filledQty).toFixed(8));
 
       // Recalculate T0 and T-levels anchored to new aggregated average entry price
       if (trade.levelsPlan) {
@@ -527,27 +617,57 @@ export class TradeManager {
       sharedMarketDataStore.updatePrice(symbol, currentPrice, now, now);
 
       for (const trade of this.trades.values()) {
-        if (trade.symbol === symbol && trade.status === 'OPEN' && trade.levelsPlan) {
-          // Step 1: Check X/Recovery triggers for RANGE_BOT
-          if (trade.xRecoveryPlan && trade.xRecoveryPlan.enabled) {
-            const recoveryTrigger = XRecoveryManager.checkTrigger(trade.xRecoveryPlan, currentPrice);
-            if (recoveryTrigger) {
-              await this.executeRecoveryBuy(trade.tradeId, recoveryTrigger.levelIndex);
-              continue; // Re-evaluate on next tick with new average price
+        if (trade.symbol === symbol) {
+          // Check Pre-Entry Recovery for trades waiting for entry
+          if (
+            trade.status === 'PENDING_ENTRY' &&
+            trade.preEntryXMonitor &&
+            trade.preEntryXMonitor.enabled
+          ) {
+            const preResult = XRecoveryManager.evaluatePreEntryTick(
+              trade.preEntryXMonitor,
+              currentPrice
+            );
+
+            if (preResult.shouldBuy) {
+              // Rule: 3 consecutive recoveries achieved during ascent -> execute buy entry!
+              await this.executeTradeEntry(
+                trade.tradeId,
+                trade.xRecoveryPlan?.enabled ? { enabled: true, stepPercent: trade.preEntryXMonitor.stepPercent } : undefined
+              );
+              continue;
+            } else if (preResult.stateChanged) {
+              this.notifyListeners();
             }
           }
 
-          // Step 2: Evaluate T-levels ladder and trailing protection
-          const evalResult = LevelCalculator.evaluatePriceTick(trade.levelsPlan, currentPrice);
+          // Check Open Trades: ALL OPEN trades governed exclusively by unified T-levels ladder
+          if (trade.status === 'OPEN' && trade.levelsPlan) {
+            trade.positionManager = 'UNIFIED_T_LADDER';
 
-          if (evalResult.levelAdvanced) {
-            trade.notes = `تقدم المستوى إلى ${evalResult.newAchievedLevel}، مستوى الحماية الحالي: ${evalResult.newProtectionPrice} USDT`;
-            this.notifyListeners();
-          }
+            // Step 1: Check dynamic recovery if enabled and position is not exiting
+            if (trade.xRecoveryPlan && trade.xRecoveryPlan.enabled && !trade.isExiting) {
+              const recoveryTrigger = XRecoveryManager.checkTrigger(trade.xRecoveryPlan, currentPrice);
+              if (recoveryTrigger) {
+                await this.executeRecoveryBuy(trade.tradeId, recoveryTrigger.levelIndex);
+                continue; // Re-evaluate on next tick with new average price
+              }
+            }
 
-          if (evalResult.shouldSell) {
-            // Trigger Sell via Trading Layer
-            await this.executeTradeExit(trade.tradeId, evalResult.triggerReason || 'تحقق شرط الحماية');
+            // Step 2: Unified T-levels ladder and trailing protection (sole authority for exit)
+            if (!trade.isExiting) {
+              const evalResult = LevelCalculator.evaluatePriceTick(trade.levelsPlan, currentPrice);
+
+              if (evalResult.levelAdvanced) {
+                trade.notes = `تقدم المستوى إلى ${evalResult.newAchievedLevel}، مستوى الحماية الحالي: ${evalResult.newProtectionPrice} USDT`;
+                this.notifyListeners();
+              }
+
+              if (evalResult.shouldSell) {
+                // Trigger Sell via Trading Layer for full quantity
+                await this.executeTradeExit(trade.tradeId, evalResult.triggerReason || 'تحقق شرط الحماية');
+              }
+            }
           }
         }
       }
@@ -557,80 +677,190 @@ export class TradeManager {
   }
 
   /**
+  /**
    * Executes Sell order via Binance Trading Layer (Mock) and calculates Net PnL.
+   * Stage 3: Requests selling the entire remaining quantity in one order.
+   * If Binance executes partially:
+   * - Records executed portion as an independent slice with its own profit & fees.
+   * - Unsold quantity remains OPEN and governed by T-levels ladder until fully sold.
+   * - Trade is not marked CLOSED until total quantity is confirmed sold.
+   * - Prevents duplicate orders and locks during AMBIGUOUS state.
    */
   public async executeTradeExit(tradeId: string, reason: string): Promise<ManagedTrade> {
     const trade = this.trades.get(tradeId);
     if (!trade) throw new Error(`Trade ${tradeId} not found.`);
-    if (trade.status !== 'OPEN') return trade;
+    // Anti-conflict position lock: prevent dual or concurrent managers from issuing conflicting exits
+    if (trade.status !== 'OPEN' || trade.isExiting) return trade;
 
+    const qtyToSell = trade.remainingQuantity !== undefined ? trade.remainingQuantity : (trade.entry.filledQuantity || 1);
+    if (qtyToSell <= 0) {
+      return trade;
+    }
+
+    trade.isExiting = true;
     trade.status = 'PENDING_EXIT';
     this.notifyListeners();
 
-    const engine = await getSharedBotEngine();
-    const qtyToSell = trade.entry.filledQuantity || 1;
+    try {
+      const engine = await getSharedBotEngine();
 
-    const sellResult = await engine.executeBotSell(trade.botId, {
-      isPartial: false,
-      quantity: qtyToSell,
-      orderType: 'MARKET',
-      reason,
-    });
-
-    if (sellResult.outcome === 'SUCCESS') {
-      const exitPrice = sellResult.avgPrice || trade.levelsPlan?.activeProtectionPrice || trade.entry.executionPrice || 1;
-      const exitQty = sellResult.executedQty || qtyToSell;
-
-      // Extract real exit commission from fill
-      const realExitFee = sellResult.commission ? sellResult.commission.amount : exitPrice * exitQty * trade.costConfig.exitCostRate;
-      const realQuoteReceived = exitPrice * exitQty;
-      const effectiveExitRate = realQuoteReceived > 0 ? realExitFee / realQuoteReceived : trade.costConfig.exitCostRate;
-
-      // Update trade costs
-      trade.costConfig.exitCostRate = Number(effectiveExitRate.toFixed(8));
-      trade.costConfig.updatedAt = Date.now();
-
-      // Update confirmed symbol store
-      sharedSymbolCostStore.saveConfirmedCost({
-        symbol: trade.symbol,
-        effectiveEntryRate: trade.costConfig.entryCostRate,
-        effectiveExitRate: effectiveExitRate,
-        lastConfirmedEntryFee: trade.costConfig.entryCostAmount,
-        lastConfirmedExitFee: realExitFee,
-        confirmedAt: Date.now(),
-        sourceTradeId: trade.tradeId,
-      });
-
-      trade.status = 'CLOSED';
-      trade.closedAt = Date.now();
-      trade.closeReason = reason;
-      trade.exit = {
-        executionPrice: exitPrice,
-        filledQuantity: exitQty,
-        executedAt: sellResult.timestamp,
-        orderId: sellResult.orderId,
+      const sellResult = await engine.executeBotSell(trade.botId, {
+        isPartial: false, // Rule: System always requests selling the full remaining quantity in one order
+        quantity: qtyToSell,
+        orderType: 'MARKET',
         reason,
-      };
-
-      // Calculate exact Net PnL using real confirmed entry and exit fees
-      trade.pnl = LevelCalculator.calculateNetPnL({
-        entryPrice: trade.entry.executionPrice || exitPrice,
-        exitPrice,
-        filledQuantity: exitQty,
-        entryCommissionQuote: trade.levelsPlan?.entryCommissionQuote || trade.costConfig.entryCostAmount,
-        exitCommissionQuote: realExitFee,
       });
 
-      trade.notes = `تم إغلاق الصفقة بنجاح: ${reason}. صافي الربح: ${trade.pnl.netReturnQuote} USDT (${trade.pnl.netReturnPercent}%). العمولات الفعلية: ${trade.pnl.totalFeesQuote} USDT.`;
-      this.notifyListeners();
-    } else if (sellResult.outcome === 'AMBIGUOUS' || sellResult.needsVerification) {
-      trade.status = 'PENDING_EXIT';
-      trade.notes = `أمر البيع (${reason}) قيد التحقق (AMBIGUOUS). يمنع تكرار الإرسال حتى التحقق.`;
-      this.notifyListeners();
-    } else if (sellResult.outcome === 'FAILED') {
-      trade.status = 'OPEN';
-      trade.notes = `فشل إرسال أمر البيع: ${sellResult.error || 'خطأ غير محدد'}. عادت الصفقة لحالة المراقبة.`;
-      this.notifyListeners();
+      const entryPrice = trade.entry.executionPrice || 1;
+      const initialTotalQty = trade.initialQuantity || trade.entry.filledQuantity || qtyToSell;
+
+      if (sellResult.outcome === 'SUCCESS' || sellResult.outcome === 'PARTIAL') {
+        const exitPrice = sellResult.avgPrice || trade.levelsPlan?.activeProtectionPrice || entryPrice;
+        const exitQty = Number((sellResult.executedQty || 0).toFixed(8));
+
+        // Did Binance execute the full requested quantity or a partial portion?
+        const isFullFill = sellResult.outcome === 'SUCCESS' && exitQty >= (qtyToSell - 1e-7);
+        const actualSoldSlice = isFullFill ? qtyToSell : Math.min(exitQty, qtyToSell);
+
+        if (actualSoldSlice > 0) {
+          // 1. Calculate proportional entry fee share for this executed slice
+          const entryFeeShare = initialTotalQty > 0
+            ? (trade.costConfig.entryCostAmount * (actualSoldSlice / initialTotalQty))
+            : 0;
+
+          // 2. Real confirmed exit commission for this execution
+          const realExitFee = sellResult.commission
+            ? sellResult.commission.amount
+            : exitPrice * actualSoldSlice * trade.costConfig.exitCostRate;
+
+          const grossReturn = (exitPrice - entryPrice) * actualSoldSlice;
+          const netReturnQuote = grossReturn - (entryFeeShare + realExitFee);
+          const investedSlice = entryPrice * actualSoldSlice;
+          const netReturnPercent = investedSlice > 0 ? (netReturnQuote / investedSlice) * 100 : 0;
+
+          const newRemaining = Number(Math.max(0, qtyToSell - actualSoldSlice).toFixed(8));
+
+          // 3. Independent ledger record for this execution
+          const record: import('./types').PartialExitRecord = {
+            recordId: `exit_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            orderId: sellResult.orderId,
+            executionPrice: exitPrice,
+            soldQuantity: actualSoldSlice,
+            remainingQuantityAfter: newRemaining,
+            entryCostQuotePortion: Number(entryFeeShare.toFixed(6)),
+            exitCostQuote: Number(realExitFee.toFixed(6)),
+            grossReturnQuote: Number(grossReturn.toFixed(4)),
+            netReturnQuote: Number(netReturnQuote.toFixed(4)),
+            netReturnPercent: Number(netReturnPercent.toFixed(2)),
+            isProfitable: netReturnQuote > 0,
+            executedAt: sellResult.timestamp || Date.now(),
+            reason,
+          };
+
+          if (!trade.partialExits) {
+            trade.partialExits = [];
+          }
+          trade.partialExits.push(record);
+
+          // Update quantities
+          trade.soldQuantity = Number(((trade.soldQuantity || 0) + actualSoldSlice).toFixed(8));
+          trade.remainingQuantity = newRemaining;
+
+          // Update symbol store costs
+          const realQuoteReceived = exitPrice * actualSoldSlice;
+          const effectiveExitRate = realQuoteReceived > 0 ? realExitFee / realQuoteReceived : trade.costConfig.exitCostRate;
+          trade.costConfig.exitCostRate = Number(effectiveExitRate.toFixed(8));
+          trade.costConfig.updatedAt = Date.now();
+
+          sharedSymbolCostStore.saveConfirmedCost({
+            symbol: trade.symbol,
+            effectiveEntryRate: trade.costConfig.entryCostRate,
+            effectiveExitRate,
+            lastConfirmedEntryFee: trade.costConfig.entryCostAmount,
+            lastConfirmedExitFee: realExitFee,
+            confirmedAt: Date.now(),
+            sourceTradeId: trade.tradeId,
+          });
+
+          if (isFullFill || newRemaining <= 0) {
+            // === FULL EXECUTION: TRADE IS COMPLETELY CLOSED ===
+            trade.status = 'CLOSED';
+            trade.closedAt = Date.now();
+            trade.closeReason = reason;
+            trade.isExiting = false;
+            trade.exit = {
+              executionPrice: exitPrice,
+              filledQuantity: actualSoldSlice,
+              executedAt: sellResult.timestamp,
+              orderId: sellResult.orderId,
+              reason,
+            };
+
+            if (trade.confirmedValues) {
+              trade.confirmedValues.confirmedExitFee = realExitFee;
+              trade.confirmedValues.isFeeDeduplicated = true;
+            }
+
+            // Aggregate overall net PnL across all partial exits
+            const totalGross = trade.partialExits.reduce((acc, r) => acc + r.grossReturnQuote, 0);
+            const totalFees = trade.partialExits.reduce((acc, r) => acc + (r.entryCostQuotePortion + r.exitCostQuote), 0);
+            const totalNet = trade.partialExits.reduce((acc, r) => acc + r.netReturnQuote, 0);
+            const totalInvested = entryPrice * initialTotalQty;
+            const totalNetPercent = totalInvested > 0 ? (totalNet / totalInvested) * 100 : 0;
+
+            trade.pnl = {
+              grossReturnQuote: Number(totalGross.toFixed(8)),
+              totalFeesQuote: Number(totalFees.toFixed(8)),
+              netReturnQuote: Number(totalNet.toFixed(8)),
+              netReturnPercent: Number(totalNetPercent.toFixed(6)),
+              isProfitable: totalNet > 0,
+            };
+
+            trade.notes = `تم إغلاق الصفقة بالكامل بعد بيع كامل الكمية (${trade.soldQuantity}). صافي الربح الإجمالي: ${trade.pnl.netReturnQuote} USDT (${trade.pnl.netReturnPercent}%). إجمالي العمولات: ${trade.pnl.totalFeesQuote} USDT.`;
+          } else {
+            // === PARTIAL EXECUTION: REMAINING QUANTITY STAYS OPEN UNDER T-LEVELS ===
+            trade.status = 'OPEN';
+            trade.isExiting = false;
+
+            // Recalculate remaining levelsPlan entry commission & T0 for the remaining quantity
+            if (trade.levelsPlan) {
+              const remainingEntryComm = initialTotalQty > 0
+                ? trade.costConfig.entryCostAmount * (newRemaining / initialTotalQty)
+                : 0;
+              trade.levelsPlan.filledQuantity = newRemaining;
+              trade.levelsPlan.entryCommissionQuote = Number(remainingEntryComm.toFixed(8));
+              trade.levelsPlan.t0BreakEvenPrice = LevelCalculator.calculateT0BreakEven(
+                trade.levelsPlan.entryPrice,
+                newRemaining,
+                trade.levelsPlan.entryCommissionQuote,
+                trade.levelsPlan.exitCommissionRate
+              );
+            }
+
+            trade.notes = `تنفيذ بيع جزئي: تم بيع ${actualSoldSlice} بسعر ${exitPrice} USDT، المتبقي ${newRemaining} مفتوح ويخضع لمستويات T. ربح الجزء المباع: ${record.netReturnQuote} USDT.`;
+          }
+          this.notifyListeners();
+        } else {
+          // Zero quantity executed
+          trade.status = 'OPEN';
+          trade.isExiting = false;
+          this.notifyListeners();
+        }
+      } else if (sellResult.outcome === 'AMBIGUOUS' || sellResult.needsVerification) {
+        trade.status = 'PENDING_EXIT';
+        trade.isExiting = true; // Retain lock to prevent duplicate order dispatch
+        trade.notes = `أمر البيع (${reason}) قيد التحقق (AMBIGUOUS). يمنع تكرار الإرسال حتى التحقق من Binance.`;
+        this.notifyListeners();
+      } else if (sellResult.outcome === 'FAILED') {
+        trade.status = 'OPEN';
+        trade.isExiting = false;
+        trade.notes = `فشل إرسال أمر البيع: ${sellResult.error || 'خطأ غير محدد'}. عادت الصفقة لحالة المراقبة بمستويات T.`;
+        this.notifyListeners();
+      }
+    } finally {
+      if (trade.status === 'CLOSED') {
+        trade.isExiting = false;
+      }
     }
 
     return trade;
@@ -638,6 +868,7 @@ export class TradeManager {
 
   /**
    * Verifies an ambiguous order with Binance Mock.
+   * Stage 3: Resolves both full and partial fills with ledger records and T-level continuity.
    */
   public async verifyTrade(tradeId: string): Promise<ManagedTrade> {
     const trade = this.trades.get(tradeId);
@@ -647,8 +878,8 @@ export class TradeManager {
     const orderId = trade.entry.orderId || trade.exit?.orderId || undefined;
     const verifyRes = await engine.verifyBotOrder(trade.botId, orderId);
 
-    if (verifyRes.found && verifyRes.status === 'FILLED') {
-      if (trade.status === 'PENDING_ENTRY') {
+    if (verifyRes.found) {
+      if (trade.status === 'PENDING_ENTRY' && verifyRes.status === 'FILLED') {
         const filledPrice = verifyRes.avgPrice || 50000;
         const filledQty = verifyRes.executedQty || trade.requestedAmount / filledPrice;
         const realFee = trade.costConfig.entryCostAmount;
@@ -673,6 +904,8 @@ export class TradeManager {
 
         trade.status = 'OPEN';
         trade.openedAt = Date.now();
+        trade.isExiting = false;
+        trade.positionManager = 'UNIFIED_T_LADDER';
         trade.entry = {
           requestedAmount: trade.requestedAmount,
           executionPrice: filledPrice,
@@ -680,34 +913,113 @@ export class TradeManager {
           orderId: verifyRes.orderId,
           executedAt: verifyRes.timestamp,
         };
+        trade.initialQuantity = filledQty;
+        trade.remainingQuantity = filledQty;
+        trade.soldQuantity = 0;
+        trade.partialExits = [];
+
         trade.levelsPlan = LevelCalculator.buildTradeLevelsPlan({
           entryPrice: filledPrice,
           filledQuantity: filledQty,
           costConfig: trade.costConfig,
           stepPercent: 2.0,
         });
+        trade.notes = 'تم تأكيد أمر الدخول بنجاح عبر استعلام التحقق (Verify).';
       } else if (trade.status === 'PENDING_EXIT') {
+        const prevRemaining = trade.remainingQuantity !== undefined ? trade.remainingQuantity : (trade.entry.filledQuantity || 1);
         const exitPrice = verifyRes.avgPrice || trade.entry.executionPrice || 1;
-        const exitQty = verifyRes.executedQty || trade.entry.filledQuantity || 1;
-        const realExitFee = exitPrice * exitQty * trade.costConfig.exitCostRate;
+        const initialTotalQty = trade.initialQuantity || trade.entry.filledQuantity || prevRemaining;
+        const entryPrice = trade.entry.executionPrice || exitPrice;
 
-        trade.status = 'CLOSED';
-        trade.closedAt = Date.now();
-        trade.exit = {
-          executionPrice: exitPrice,
-          filledQuantity: exitQty,
-          executedAt: verifyRes.timestamp || Date.now(),
-          orderId: verifyRes.orderId,
-          reason: 'تم تأكيد تنفيذ البيع عبر استعلام التحقق (Verify)',
-        };
-        trade.pnl = LevelCalculator.calculateNetPnL({
-          entryPrice: trade.entry.executionPrice || exitPrice,
-          exitPrice,
-          filledQuantity: exitQty,
-          entryCommissionQuote: trade.levelsPlan?.entryCommissionQuote || trade.costConfig.entryCostAmount,
-          exitCommissionQuote: realExitFee,
-        });
-        trade.notes = `تم تأكيد إغلاق الصفقة بالتحقق. صافي الربح: ${trade.pnl.netReturnQuote} USDT (${trade.pnl.netReturnPercent}%).`;
+        if (verifyRes.status === 'FILLED' || verifyRes.status === 'PARTIALLY_FILLED') {
+          const executedQty = Number((verifyRes.executedQty || prevRemaining).toFixed(8));
+          const isFull = verifyRes.status === 'FILLED' && executedQty >= (prevRemaining - 1e-7);
+          const actualSoldSlice = isFull ? prevRemaining : Math.min(executedQty, prevRemaining);
+
+          if (actualSoldSlice > 0) {
+            const entryFeeShare = initialTotalQty > 0
+              ? (trade.costConfig.entryCostAmount * (actualSoldSlice / initialTotalQty))
+              : 0;
+            const realExitFee = exitPrice * actualSoldSlice * trade.costConfig.exitCostRate;
+            const grossReturn = (exitPrice - entryPrice) * actualSoldSlice;
+            const netReturnQuote = grossReturn - (entryFeeShare + realExitFee);
+            const investedSlice = entryPrice * actualSoldSlice;
+            const netReturnPercent = investedSlice > 0 ? (netReturnQuote / investedSlice) * 100 : 0;
+            const newRemaining = Number(Math.max(0, prevRemaining - actualSoldSlice).toFixed(8));
+
+            const record: import('./types').PartialExitRecord = {
+              recordId: `exit_vfy_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              orderId: verifyRes.orderId,
+              executionPrice: exitPrice,
+              soldQuantity: actualSoldSlice,
+              remainingQuantityAfter: newRemaining,
+              entryCostQuotePortion: Number(entryFeeShare.toFixed(6)),
+              exitCostQuote: Number(realExitFee.toFixed(6)),
+              grossReturnQuote: Number(grossReturn.toFixed(4)),
+              netReturnQuote: Number(netReturnQuote.toFixed(4)),
+              netReturnPercent: Number(netReturnPercent.toFixed(2)),
+              isProfitable: netReturnQuote > 0,
+              executedAt: verifyRes.timestamp || Date.now(),
+              reason: 'تأكيد عبر التحقق (Verify)',
+            };
+
+            if (!trade.partialExits) trade.partialExits = [];
+            trade.partialExits.push(record);
+
+            trade.soldQuantity = Number(((trade.soldQuantity || 0) + actualSoldSlice).toFixed(8));
+            trade.remainingQuantity = newRemaining;
+
+            if (isFull || newRemaining <= 0) {
+              trade.status = 'CLOSED';
+              trade.closedAt = Date.now();
+              trade.closeReason = 'تأكيد إغلاق بالكامل عبر استعلام التحقق (Verify)';
+              trade.isExiting = false;
+              trade.exit = {
+                executionPrice: exitPrice,
+                filledQuantity: actualSoldSlice,
+                executedAt: verifyRes.timestamp || Date.now(),
+                orderId: verifyRes.orderId,
+                reason: 'تأكيد تنفيذ البيع عبر استعلام التحقق (Verify)',
+              };
+
+              const totalGross = trade.partialExits.reduce((acc, r) => acc + r.grossReturnQuote, 0);
+              const totalFees = trade.partialExits.reduce((acc, r) => acc + (r.entryCostQuotePortion + r.exitCostQuote), 0);
+              const totalNet = trade.partialExits.reduce((acc, r) => acc + r.netReturnQuote, 0);
+              const totalInvested = entryPrice * initialTotalQty;
+              const totalNetPercent = totalInvested > 0 ? (totalNet / totalInvested) * 100 : 0;
+
+              trade.pnl = {
+                grossReturnQuote: Number(totalGross.toFixed(8)),
+                totalFeesQuote: Number(totalFees.toFixed(8)),
+                netReturnQuote: Number(totalNet.toFixed(8)),
+                netReturnPercent: Number(totalNetPercent.toFixed(6)),
+                isProfitable: totalNet > 0,
+              };
+              trade.notes = `تم تأكيد إغلاق الصفقة بالكامل بالتحقق. صافي الربح: ${trade.pnl.netReturnQuote} USDT (${trade.pnl.netReturnPercent}%).`;
+            } else {
+              trade.status = 'OPEN';
+              trade.isExiting = false;
+              if (trade.levelsPlan) {
+                const remainingEntryComm = initialTotalQty > 0
+                  ? trade.costConfig.entryCostAmount * (newRemaining / initialTotalQty)
+                  : 0;
+                trade.levelsPlan.filledQuantity = newRemaining;
+                trade.levelsPlan.entryCommissionQuote = Number(remainingEntryComm.toFixed(8));
+                trade.levelsPlan.t0BreakEvenPrice = LevelCalculator.calculateT0BreakEven(
+                  trade.levelsPlan.entryPrice,
+                  newRemaining,
+                  trade.levelsPlan.entryCommissionQuote,
+                  trade.levelsPlan.exitCommissionRate
+                );
+              }
+              trade.notes = `تم تأكيد بيع جزئي بالتحقق: بيع ${actualSoldSlice}، المتبقي ${newRemaining} مستمر تحت مستويات T.`;
+            }
+          }
+        } else if (verifyRes.status === 'CANCELED' || verifyRes.status === 'REJECTED' || verifyRes.status === 'EXPIRED') {
+          trade.status = 'OPEN';
+          trade.isExiting = false;
+          trade.notes = `أمر البيع ملغى على Binance (${verifyRes.status}). عادت الصفقة لحالة المراقبة بمستويات T.`;
+        }
       }
       this.notifyListeners();
     }
@@ -776,6 +1088,8 @@ export class TradeManager {
       } else if (isOpen && existing.status !== 'OPEN') {
         existing.status = 'OPEN';
         existing.openedAt = trade?.entry.executedAt || Date.now();
+        existing.positionManager = 'UNIFIED_T_LADDER';
+        existing.isExiting = false;
         if (trade?.entry.executionPrice) {
           existing.entry.executionPrice = trade.entry.executionPrice;
           existing.entry.filledQuantity = trade.entry.filledQuantity;
@@ -843,6 +1157,34 @@ export class TradeManager {
         reason: trade.exit.reason || 'إغلاق من البوت',
       } : undefined,
       costConfig: initialCostConfig,
+      initialQuantity: trade?.entry.filledQuantity || filledQty,
+      remainingQuantity: isOpen ? (trade?.entry.filledQuantity || filledQty) : 0,
+      soldQuantity: isClosed ? (trade?.exit?.filledQuantity || filledQty) : 0,
+      partialExits: [],
+      manualValues: {
+        manualAmount: cfg.entryAmount,
+        manualPlannedPrice: trade?.entry.plannedPrice || null,
+        manualEstimatedQuantity: trade?.entry.plannedPrice ? Number((cfg.entryAmount / trade.entry.plannedPrice).toFixed(8)) : null,
+        manualEntryFeePercent: initialCostConfig.entryFeePercent,
+        manualEntryFeeAmount: initialCostConfig.entryFeeAmount,
+        manualExitFeePercent: initialCostConfig.exitFeePercent,
+        manualExitFeeAmount: initialCostConfig.exitFeeAmount,
+        manualEntryFee: initialCostConfig.entryCostAmount,
+        manualExitFeeRate: initialCostConfig.exitCostRate,
+        manualStepPercent: cfg.tRuleConfig.targetValue || 2.0,
+        manualStopLossPercent: 0,
+        approvedAt: cycle?.startedAt || Date.now(),
+      },
+      confirmedValues: execPrice && filledQty ? {
+        confirmedPrice: execPrice,
+        confirmedQuantity: filledQty,
+        confirmedQuoteAmount: execPrice * filledQty,
+        confirmedEntryFee: initialCostConfig.entryCostAmount,
+        orderId: trade?.entry.orderId,
+        confirmedAt: trade?.entry.executedAt || Date.now(),
+        exchangeSource: 'BINANCE_ACTUAL',
+        isFeeDeduplicated: true,
+      } : null,
       createdAt: cycle?.startedAt || Date.now(),
       openedAt: trade?.entry.executedAt,
       closedAt: trade?.exit.executedAt,
@@ -851,6 +1193,8 @@ export class TradeManager {
     };
 
     if (isOpen && execPrice && filledQty) {
+      managedTrade.positionManager = 'UNIFIED_T_LADDER';
+      managedTrade.isExiting = false;
       managedTrade.levelsPlan = LevelCalculator.buildTradeLevelsPlan({
         entryPrice: execPrice,
         filledQuantity: filledQty,

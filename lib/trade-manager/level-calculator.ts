@@ -25,20 +25,21 @@ export class LevelCalculator {
     entryPrice: number,
     filledQuantity: number,
     entryCommissionQuote: number = 0,
-    exitCommissionRate: number = 0.001
+    exitCommissionRate: number = 0.001,
+    exitFeeAmount: number = 0
   ): number {
     if (filledQuantity <= 0 || entryPrice <= 0) return entryPrice;
 
     // Total cash invested at entry = (entryPrice * filledQuantity) + entryCommissionQuote
     const totalCashInvested = entryPrice * filledQuantity + entryCommissionQuote;
 
-    // At exit: Net cash received = exitPrice * filledQuantity * (1 - exitCommissionRate)
+    // At exit: Net cash received = (exitPrice * filledQuantity * (1 - exitCommissionRate)) - exitFeeAmount
     // For net break-even: Net cash received = totalCashInvested
-    // T0 = totalCashInvested / (filledQuantity * (1 - exitCommissionRate))
+    // T0 = (totalCashInvested + exitFeeAmount) / (filledQuantity * (1 - exitCommissionRate))
     const netExitMultiplier = 1 - exitCommissionRate;
     if (netExitMultiplier <= 0) return entryPrice;
 
-    const t0 = totalCashInvested / (filledQuantity * netExitMultiplier);
+    const t0 = (totalCashInvested + exitFeeAmount) / (filledQuantity * netExitMultiplier);
     return Number(t0.toFixed(8));
   }
 
@@ -58,6 +59,7 @@ export class LevelCalculator {
     const costConfig = params.costConfig;
     const entryCommissionQuote = costConfig.entryCostAmount || 0;
     const exitCommissionRate = costConfig.exitCostRate || 0.001;
+    const exitFeeAmount = costConfig.exitFeeAmount || 0;
     const stepPercent = params.stepPercent !== undefined && params.stepPercent > 0 ? params.stepPercent : 2.0;
 
     // Accepts negative (e.g. -2.5%) or positive (e.g. 2.5%)
@@ -68,7 +70,8 @@ export class LevelCalculator {
       entryPrice,
       filledQuantity,
       entryCommissionQuote,
-      exitCommissionRate
+      exitCommissionRate,
+      exitFeeAmount
     );
 
     const stepDelta = entryPrice * (stepPercent / 100);
@@ -89,6 +92,7 @@ export class LevelCalculator {
       filledQuantity,
       entryCommissionQuote,
       exitCommissionRate,
+      exitFeeAmount,
       t0BreakEvenPrice,
       stepPercent,
       t1Minus50Price,
@@ -117,13 +121,15 @@ export class LevelCalculator {
     plan.costConfig = { ...newCostConfig };
     plan.entryCommissionQuote = newCostConfig.entryCostAmount;
     plan.exitCommissionRate = newCostConfig.exitCostRate;
+    plan.exitFeeAmount = newCostConfig.exitFeeAmount || 0;
 
     // Recalculate T0 Net Break-Even with new confirmed costs
     plan.t0BreakEvenPrice = LevelCalculator.calculateT0BreakEven(
       plan.entryPrice,
       plan.filledQuantity,
       plan.entryCommissionQuote,
-      plan.exitCommissionRate
+      plan.exitCommissionRate,
+      plan.exitFeeAmount
     );
 
     // If currently at T1-50%, the active protection level is T0, so update it!
@@ -149,12 +155,15 @@ export class LevelCalculator {
     plan.filledQuantity = newTotalQuantity;
     plan.entryCommissionQuote = newTotalEntryCommission;
 
+    const exitFeeAmount = plan.exitFeeAmount || plan.costConfig?.exitFeeAmount || 0;
+
     // Recalculate T0 based on aggregated volume and costs
     plan.t0BreakEvenPrice = LevelCalculator.calculateT0BreakEven(
       newAverageEntryPrice,
       newTotalQuantity,
       newTotalEntryCommission,
-      plan.exitCommissionRate
+      plan.exitCommissionRate,
+      exitFeeAmount
     );
 
     // Recompute T-levels anchored to the new weighted average entry price

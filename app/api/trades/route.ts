@@ -39,6 +39,26 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+
+    // Phase 5: Manually seed demo trade for testing upon explicit user request
+    if (body.action === 'seed_demo') {
+      const demoTrade = await sharedTradeManager.createTradeFromManual({
+        symbol: body.symbol || 'BTCUSDT',
+        entryAmount: body.entryAmount ? Number(body.entryAmount) : 100,
+        entryPrice: body.entryPrice ? Number(body.entryPrice) : 65000,
+        stepPercent: body.stepPercent ? Number(body.stepPercent) : 2.0,
+        manualEntryCost: 0.1,
+        manualExitCostRate: 0.0015,
+        botType: body.botType || 'DEAL_BOT',
+        immediateEntry: true,
+      });
+      return NextResponse.json({
+        success: true,
+        trade: demoTrade,
+        message: 'تم إنشاء صفقة تجريبية يدويًا للاختبار بنجاح.',
+      });
+    }
+
     const source = body.source || 'MANUAL';
     const symbol = body.symbol;
     const entryAmount =
@@ -47,11 +67,16 @@ export async function POST(req: NextRequest) {
         : 100;
     const manualEntryCost = body.manualEntryCost !== undefined ? Number(body.manualEntryCost) : undefined;
     const manualExitCostRate = body.manualExitCostRate !== undefined ? Number(body.manualExitCostRate) : undefined;
+    const manualEntryFeePercent = body.manualEntryFeePercent !== undefined ? Number(body.manualEntryFeePercent) : undefined;
+    const manualEntryFeeAmount = body.manualEntryFeeAmount !== undefined ? Number(body.manualEntryFeeAmount) : undefined;
+    const manualExitFeePercent = body.manualExitFeePercent !== undefined ? Number(body.manualExitFeePercent) : undefined;
+    const manualExitFeeAmount = body.manualExitFeeAmount !== undefined ? Number(body.manualExitFeeAmount) : undefined;
     const stepPercent = body.stepPercent !== undefined && Number(body.stepPercent) > 0 ? Number(body.stepPercent) : undefined;
     const botType = body.botType || (body.xSettings?.enabled ? 'RANGE_BOT' : 'DEAL_BOT');
     const xSettings = body.xSettings;
     const initialStopLossPercent = body.initialStopLossPercent !== undefined ? Number(body.initialStopLossPercent) : undefined;
     const immediateEntry = body.immediateEntry !== undefined ? Boolean(body.immediateEntry) : undefined;
+    const isPreEntryRecovery = body.isPreEntryRecovery !== undefined ? Boolean(body.isPreEntryRecovery) : undefined;
 
     if (!symbol) {
       return NextResponse.json(
@@ -69,10 +94,15 @@ export async function POST(req: NextRequest) {
         stepPercent,
         manualEntryCost,
         manualExitCostRate,
+        manualEntryFeePercent,
+        manualEntryFeeAmount,
+        manualExitFeePercent,
+        manualExitFeeAmount,
         botType,
         xSettings,
         initialStopLossPercent,
         immediateEntry,
+        isPreEntryRecovery,
       });
     } else {
       trade = await sharedTradeManager.createTradeFromManual({
@@ -82,10 +112,15 @@ export async function POST(req: NextRequest) {
         stepPercent,
         manualEntryCost,
         manualExitCostRate,
+        manualEntryFeePercent,
+        manualEntryFeeAmount,
+        manualExitFeePercent,
+        manualExitFeeAmount,
         botType,
         xSettings,
         initialStopLossPercent,
         immediateEntry,
+        isPreEntryRecovery,
       });
     }
 

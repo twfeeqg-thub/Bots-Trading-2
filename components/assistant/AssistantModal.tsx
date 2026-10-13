@@ -45,6 +45,8 @@ import {
   AttachmentType
 } from './AssistantTypes';
 import { AssistantSettingsModal } from './AssistantSettingsModal';
+import { RangeCoinsTableModal } from './RangeCoinsTableModal';
+import { RangeCoinScanItem } from '@/app/api/assistant/range-analysis/route';
 
 interface AssistantModalProps {
   isOpen: boolean;
@@ -78,6 +80,7 @@ export function AssistantModal({
   // Modal dimensions state
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isRangeTableOpen, setIsRangeTableOpen] = useState<boolean>(false);
 
   // In-Memory settings state (keys are never persisted in localStorage)
   const [settings, setSettings] = useState<AssistantUserSettings>(DEFAULT_SETTINGS);
@@ -437,6 +440,21 @@ export function AssistantModal({
     }
   };
 
+  // Handle selecting a coin from range detection table into chat
+  const handleSelectCoinFromRangeTable = (symbol: string, item: RangeCoinScanItem) => {
+    setSelectedSymbol(symbol);
+    const promptText = `قدم لي تقييمًا تحليليًا تفصيليًا للعملة العرضية ${symbol}:
+- السعر الحالي: ${item.currentPrice}
+- مستوى الدعم: ${item.supportPrice} | مستوى المقاومة: ${item.resistancePrice}
+- النطاق الإجمالي: ${item.grossRangePercent.toFixed(2)}% | النطاق القابل للتحقيق (بعد اقتطاع 15%): ${item.realizableRangePercent.toFixed(2)}%
+- التكاليف المقدرة: ${item.totalFrictionPercent.toFixed(2)}% (رسوم مؤكدة ${item.confirmedFeePercent}% + انزلاق ${item.assumedSlippagePercent}%)
+- صافي الجدوى بعد الرسوم: ${item.netRealizableMarginPercent.toFixed(2)}%
+- درجة جودة النطاق: ${item.qualityScore}/100 | التصنيف: ${item.classification}
+ما هو تقييمك لجدوى الحركة العرضية الحالية والمخاطر المحتملة؟`;
+
+    handleSendMessage(promptText);
+  };
+
   // Quick switch provider on error or user request
   const handleQuickSwitchProvider = (newProvider: AIProvider) => {
     const config = PROVIDERS_CONFIG[newProvider];
@@ -691,20 +709,36 @@ export function AssistantModal({
             </button>
           </div>
 
-          {/* Quick News Trigger */}
-          <button
-            type="button"
-            onClick={handleFetchCryptoNews}
-            disabled={isFetchingNews}
-            className={`px-2.5 py-1 rounded-lg border font-medium flex items-center gap-1 text-[11px] transition-colors ${
-              isLight
-                ? 'bg-white border-slate-300 hover:bg-slate-50 text-slate-700'
-                : 'bg-slate-900 border-slate-700 hover:bg-slate-800 text-slate-200'
-            }`}
-          >
-            <Globe className={`w-3 h-3 text-sky-400 ${isFetchingNews ? 'animate-spin' : ''}`} />
-            <span>{isFetchingNews ? 'جلب الأخبار...' : 'أحدث الأخبار'}</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            {/* Range Coins Analysis Trigger */}
+            <button
+              type="button"
+              onClick={() => setIsRangeTableOpen(true)}
+              className={`px-2.5 py-1 rounded-lg border font-semibold flex items-center gap-1.5 text-[11px] transition-colors cursor-pointer ${
+                isLight
+                  ? 'bg-emerald-50 border-emerald-300 hover:bg-emerald-100 text-emerald-800 shadow-2xs'
+                  : 'bg-emerald-500/15 border-emerald-500/30 hover:bg-emerald-500/25 text-emerald-300 shadow-2xs'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5 text-emerald-400" />
+              <span>العملات العرضية</span>
+            </button>
+
+            {/* Quick News Trigger */}
+            <button
+              type="button"
+              onClick={handleFetchCryptoNews}
+              disabled={isFetchingNews}
+              className={`px-2.5 py-1 rounded-lg border font-medium flex items-center gap-1 text-[11px] transition-colors ${
+                isLight
+                  ? 'bg-white border-slate-300 hover:bg-slate-50 text-slate-700'
+                  : 'bg-slate-900 border-slate-700 hover:bg-slate-800 text-slate-200'
+              }`}
+            >
+              <Globe className={`w-3 h-3 text-sky-400 ${isFetchingNews ? 'animate-spin' : ''}`} />
+              <span>{isFetchingNews ? 'جلب الأخبار...' : 'أحدث الأخبار'}</span>
+            </button>
+          </div>
         </div>
 
         {/* Message Thread Area */}
@@ -1365,6 +1399,13 @@ export function AssistantModal({
         settings={settings}
         onUpdateSettings={(newSettings) => setSettings(newSettings)}
         isLight={isLight}
+      />
+
+      {/* Range Coins Analysis Table Modal */}
+      <RangeCoinsTableModal
+        isOpen={isRangeTableOpen}
+        onClose={() => setIsRangeTableOpen(false)}
+        onSelectCoinForChat={handleSelectCoinFromRangeTable}
       />
     </>
   );

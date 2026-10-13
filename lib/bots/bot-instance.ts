@@ -275,6 +275,20 @@ export class BotInstance {
   }
 
   /**
+   * Reverts bot from EXECUTING_SELL or VERIFYING_SELL back to POSITION_OPEN if sell order failed.
+   */
+  public revertSellToPositionOpen(reason?: string): TransitionResult {
+    const reasonText = reason || 'فشل إرسال أمر البيع؛ عودة المركز للمراقبة بمستويات T';
+    const res = this.transitionTo('POSITION_OPEN', reasonText);
+    if (res.success && this.currentTrade) {
+      this.currentTrade.status = 'OPEN';
+      this.currentTrade.notes = reasonText;
+      this.emitTradeUpdate();
+    }
+    return res;
+  }
+
+  /**
    * Step 8: Transitions from EXECUTING_SELL to VERIFYING_SELL.
    */
   public confirmSellVerification(details?: Partial<TradeExitExecution>): TransitionResult {
@@ -284,6 +298,33 @@ export class BotInstance {
       if (details.filledQuantity !== undefined) this.currentTrade.exit.filledQuantity = details.filledQuantity;
       if (details.executedAt !== undefined) this.currentTrade.exit.executedAt = details.executedAt;
       if (details.orderId !== undefined) this.currentTrade.exit.orderId = details.orderId;
+      this.emitTradeUpdate();
+    }
+    return res;
+  }
+
+  /**
+   * Confirms a partial sale execution: updates remaining open quantity and returns bot to POSITION_OPEN.
+   */
+  public recordPartialSell(params: {
+    executionPrice?: number;
+    soldQuantity: number;
+    remainingQuantity: number;
+    orderId?: string;
+  }): TransitionResult {
+    const currentState = this.getState();
+    if (currentState === 'EXECUTING_SELL') {
+      this.transitionTo('VERIFYING_SELL', 'التحقق من تنفيذ البيع الجزئي');
+    }
+    const res = this.transitionTo(
+      'POSITION_OPEN',
+      `تأكيد بيع جزئي (${params.soldQuantity}) وبقاء الكمية المتبقية (${params.remainingQuantity}) مفتوحة`
+    );
+
+    if (this.currentTrade) {
+      this.currentTrade.status = 'OPEN';
+      this.currentTrade.entry.filledQuantity = params.remainingQuantity;
+      this.currentTrade.notes = `تم تنفيذ بيع جزئي: ${params.soldQuantity}، الكمية المتبقية: ${params.remainingQuantity} مفتوحة وتحت المراقبة`;
       this.emitTradeUpdate();
     }
     return res;

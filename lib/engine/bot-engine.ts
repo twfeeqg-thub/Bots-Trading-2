@@ -170,6 +170,50 @@ export class BotEngine {
   }
 
   /**
+   * Phase 5: Manually creates demo exemplar bots for testing on demand.
+   * Only called when the user explicitly triggers mock data creation.
+   */
+  public async seedDemoBots(): Promise<BotSummaryDTO[]> {
+    this.ensureInitialized();
+    const ts = Date.now();
+    const demo1Id = `bot_btc_demo_${ts}`;
+    const demo2Id = `bot_eth_demo_${ts + 1}`;
+
+    await this.createBot({
+      id: demo1Id,
+      type: 'RANGE_BOT',
+      name: 'بوت المسار العرضي التجريبي — BTC',
+      symbol: 'BTCUSDT',
+      entryAmount: 150,
+      tRuleConfig: {
+        targetType: 'FIXED_PERCENT',
+        targetValue: 2.0,
+        description: 'هدف سقف المسار العرضي',
+      },
+      xSettings: {
+        enabled: true,
+        maxLevels: 3,
+        stepPercent: 1.5,
+      },
+    });
+
+    await this.createBot({
+      id: demo2Id,
+      type: 'DEAL_BOT',
+      name: 'بوت صفقة الاختراق التجريبي — ETH',
+      symbol: 'ETHUSDT',
+      entryAmount: 100,
+      tRuleConfig: {
+        targetType: 'FIXED_PERCENT',
+        targetValue: 3.5,
+        description: 'هدف فك الاختراق',
+      },
+    });
+
+    return this.listBots();
+  }
+
+  /**
    * Retrieves a bot instance by ID.
    */
   public getBot(id: string): BotInstance | undefined {
@@ -623,28 +667,38 @@ export class BotEngine {
 
     // Step 3: Handle outcome
     if (result.outcome === 'SUCCESS') {
-      bot.confirmSellVerification({
-        executionPrice: result.avgPrice ?? undefined,
-        filledQuantity: result.executedQty,
-        orderId: result.orderId ?? undefined,
-        executedAt: result.timestamp,
-      });
-
-      if (!options?.isPartial) {
+      const isFull = !options?.isPartial && result.executedQty >= (qty - 1e-7);
+      if (isFull) {
+        bot.confirmSellVerification({
+          executionPrice: result.avgPrice ?? undefined,
+          filledQuantity: result.executedQty,
+          orderId: result.orderId ?? undefined,
+          executedAt: result.timestamp,
+        });
         // Full sell: close position
         bot.closePosition({
           executionPrice: result.avgPrice ?? undefined,
           filledQuantity: result.executedQty,
           orderId: result.orderId ?? undefined,
         });
+      } else {
+        // Partial sell execution: record partial and keep bot in POSITION_OPEN
+        const remQty = Math.max(0, Number((qty - result.executedQty).toFixed(8)));
+        bot.recordPartialSell({
+          executionPrice: result.avgPrice ?? undefined,
+          soldQuantity: result.executedQty,
+          remainingQuantity: remQty,
+          orderId: result.orderId ?? undefined,
+        });
       }
       await this.persistBotState(bot);
     } else if (result.outcome === 'PARTIAL') {
-      bot.confirmSellVerification({
+      const remQty = Math.max(0, Number((qty - result.executedQty).toFixed(8)));
+      bot.recordPartialSell({
         executionPrice: result.avgPrice ?? undefined,
-        filledQuantity: result.executedQty,
+        soldQuantity: result.executedQty,
+        remainingQuantity: remQty,
         orderId: result.orderId ?? undefined,
-        executedAt: result.timestamp,
       });
       await this.persistBotState(bot);
     } else if (result.outcome === 'AMBIGUOUS' || result.needsVerification) {
@@ -653,6 +707,9 @@ export class BotEngine {
       });
       await this.persistBotState(bot);
     } else if (result.outcome === 'FAILED') {
+      if (bot.getState() === 'EXECUTING_SELL' || bot.getState() === 'VERIFYING_SELL') {
+        bot.revertSellToPositionOpen('فشل تنفيذ البيع - عودة المركز للمراقبة بمستويات T');
+      }
       await this.persistBotState(bot);
     }
 

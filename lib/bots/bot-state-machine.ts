@@ -35,11 +35,11 @@ export const ALLOWED_TRANSITIONS: Record<BotState, readonly BotState[]> = {
   // 6. POSITION_OPEN: Can initiate sell execution (TP/SL/Rule), or error
   POSITION_OPEN: ['EXECUTING_SELL', 'ERROR'],
 
-  // 7. EXECUTING_SELL: Can move to verification once sent, or error
-  EXECUTING_SELL: ['VERIFYING_SELL', 'ERROR'],
+  // 7. EXECUTING_SELL: Can move to verification once sent, return to open on immediate failure, or error
+  EXECUTING_SELL: ['VERIFYING_SELL', 'POSITION_OPEN', 'ERROR'],
 
-  // 8. VERIFYING_SELL: Can confirm position closed, retry sell, or error
-  VERIFYING_SELL: ['POSITION_CLOSED', 'EXECUTING_SELL', 'ERROR'],
+  // 8. VERIFYING_SELL: Can confirm position closed, return to open on partial sell, retry sell, or error
+  VERIFYING_SELL: ['POSITION_CLOSED', 'POSITION_OPEN', 'EXECUTING_SELL', 'ERROR'],
 
   // 9. POSITION_CLOSED: Moves to STOPPED (V1 cycle completion; auto-restart deferred)
   POSITION_CLOSED: ['STOPPED'],
@@ -67,7 +67,7 @@ export const ALLOWED_ERROR_RECOVERIES: Record<BotState, readonly BotState[]> = {
   VERIFYING_BUY: ['STOPPED', 'EXECUTING_BUY', 'POSITION_OPEN'],
   POSITION_OPEN: ['POSITION_OPEN', 'EXECUTING_SELL'],
   EXECUTING_SELL: ['EXECUTING_SELL', 'POSITION_OPEN'],
-  VERIFYING_SELL: ['POSITION_CLOSED', 'EXECUTING_SELL'],
+  VERIFYING_SELL: ['POSITION_CLOSED', 'POSITION_OPEN', 'EXECUTING_SELL'],
   POSITION_CLOSED: ['STOPPED'],
   STOPPED: ['STOPPED'],
   ERROR: ['STOPPED', 'WAITING_FOR_ENTRY'],

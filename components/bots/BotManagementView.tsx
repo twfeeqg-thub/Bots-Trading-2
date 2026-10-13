@@ -90,6 +90,38 @@ export function BotManagementView({ onNavigateToTradeManager }: BotManagementVie
     setTimeout(() => setActionFeedback(null), 6000);
   };
 
+  // Phase 5: Manually trigger creation of demo exemplar bots for testing on demand
+  const handleSeedDemoBots = async () => {
+    setIsActionLoading(true);
+    try {
+      const res = await fetch('/api/engine/bots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'seed_demo' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showFeedback(data.message || 'تم إنشاء بوتات تجريبية للاختبار بنجاح.', 'success');
+        const refreshedRes = await fetch('/api/engine/bots');
+        if (refreshedRes.ok) {
+          const refreshedData = await refreshedRes.json();
+          if (refreshedData.success && Array.isArray(refreshedData.bots)) {
+            setBots(refreshedData.bots);
+            if (refreshedData.bots.length > 0) {
+              setSelectedBotId(refreshedData.bots[0].id);
+            }
+          }
+        }
+      } else {
+        showFeedback(data.error || 'تعذر إنشاء البيانات التجريبية', 'error');
+      }
+    } catch {
+      showFeedback('فشل الاتصال بمحرك البوتات', 'error');
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
   // Fetch all bots from BotEngine via API
   const fetchBots = useCallback(async () => {
     try {
@@ -362,6 +394,17 @@ export function BotManagementView({ onNavigateToTradeManager }: BotManagementVie
 
           <button
             type="button"
+            onClick={handleSeedDemoBots}
+            disabled={isLoading || isActionLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-semibold transition-colors border border-cyan-500/30 disabled:opacity-50"
+            title="إنشاء بوتات تجريبية للاختبار يدويًا (Phase 5)"
+          >
+            <Play className="w-3.5 h-3.5 text-cyan-400" />
+            <span>بيانات تجريبية للاختبار</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition-colors"
           >
@@ -439,16 +482,33 @@ export function BotManagementView({ onNavigateToTradeManager }: BotManagementVie
           </div>
 
           {filteredBots.length === 0 ? (
-            <div className="p-8 rounded-xl border border-slate-800 bg-slate-900/40 text-center space-y-3">
-              <Bot className="w-8 h-8 text-slate-600 mx-auto" />
-              <p className="text-xs text-slate-400">لا توجد بوتات مسجلة حاليًا</p>
-              <button
-                type="button"
-                onClick={() => setShowCreateModal(true)}
-                className="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold hover:bg-emerald-500/30"
-              >
-                إنشاء أول بوت
-              </button>
+            <div className="p-6 rounded-xl border border-slate-800 bg-slate-900/40 text-center space-y-3">
+              <Bot className="w-10 h-10 text-slate-500 mx-auto" />
+              <div className="space-y-1">
+                <p className="text-sm font-bold text-slate-200">لا توجد بوتات مسجلة حاليًا</p>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  تم إيقاف الإنشاء التلقائي للبوتات. يمكنك إنشاء بوت جديد أو توليد بيانات تجريبية للاختبار.
+                </p>
+              </div>
+              <div className="pt-1 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(true)}
+                  className="w-full py-2 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>إنشاء أول بوت</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSeedDemoBots}
+                  disabled={isActionLoading}
+                  className="w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Play className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>إنشاء بيانات تجريبية للاختبار</span>
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-2">
@@ -1001,12 +1061,56 @@ export function BotManagementView({ onNavigateToTradeManager }: BotManagementVie
                 </div>
               )}
             </div>
+          ) : bots.length === 0 ? (
+            <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-10 text-center space-y-5">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mx-auto">
+                <Bot className="w-8 h-8" />
+              </div>
+              <div className="max-w-md mx-auto space-y-2">
+                <h3 className="text-base font-bold text-slate-100">
+                  لا توجد بوتات أو صفقات فعلية قيد التشغيل
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  تم إيقاف الإنشاء التلقائي للبوتات التجريبية عند بدء التطبيق (المرحلة 5). محرك Bot Core جاهز في حالة نظيفة (0 بوتات). يمكنك إنشاء بوت جديد يدويًا أو إنشاء بيانات تجريبية للاختبار والمحاكاة.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-center gap-3 flex-wrap pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(true)}
+                  className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold flex items-center gap-2 transition-colors shadow-lg shadow-emerald-500/20"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>إنشاء أول بوت</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSeedDemoBots}
+                  disabled={isActionLoading}
+                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-xs font-semibold flex items-center gap-2 transition-colors"
+                >
+                  <Play className="w-4 h-4 text-cyan-400" />
+                  <span>إنشاء بيانات تجريبية للاختبار</span>
+                </button>
+                {onNavigateToTradeManager && (
+                  <button
+                    type="button"
+                    onClick={() => onNavigateToTradeManager()}
+                    className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-indigo-500/30 text-xs font-semibold flex items-center gap-2 transition-colors"
+                  >
+                    <TrendingUp className="w-4 h-4 text-indigo-400" />
+                    <span>الانتقال لمدير الصفقات</span>
+                  </button>
+                )}
+              </div>
+            </div>
           ) : (
             <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-12 text-center text-slate-400 space-y-2">
               <Bot className="w-10 h-10 text-slate-600 mx-auto" />
               <p className="text-sm font-semibold text-slate-300">لم يتم اختيار أي بوت</p>
               <p className="text-xs text-slate-500">
-                اختر بوتًا من القائمة الجانبية أو قم بإنشاء بوت جديد للبدء
+                اختر بوتًا من القائمة الجانبية لعرض تفاصيل حالته والتحكم به
               </p>
             </div>
           )}

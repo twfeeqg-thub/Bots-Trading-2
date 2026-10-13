@@ -5,29 +5,7 @@ import { CreateBotParams } from '@/lib/bots/types';
 export async function GET() {
   try {
     const engine = await getSharedBotEngine();
-    let bots = engine.listBots();
-
-    if (bots.length === 0) {
-      try {
-        await engine.createBot({
-          id: 'bot_btc_sample',
-          type: 'RANGE_BOT',
-          name: 'بوت المسار العرضي — BTC',
-          symbol: 'BTCUSDT',
-          entryAmount: 150,
-        });
-        await engine.createBot({
-          id: 'bot_eth_sample',
-          type: 'DEAL_BOT',
-          name: 'بوت صفقة الاختراق — ETH',
-          symbol: 'ETHUSDT',
-          entryAmount: 100,
-        });
-        bots = engine.listBots();
-      } catch {
-        // Non-fatal if already existing
-      }
-    }
+    const bots = engine.listBots();
 
     return NextResponse.json({
       success: true,
@@ -42,16 +20,29 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const body: CreateBotParams = await req.json();
-    if (!body.type || !body.symbol) {
+    const body = await req.json();
+    const engine = await getSharedBotEngine();
+
+    // Phase 5: Manually seed demo bots for testing upon explicit user request
+    if (body.action === 'seed_demo') {
+      const bots = await engine.seedDemoBots();
+      return NextResponse.json({
+        success: true,
+        message: 'تم إنشاء بوتات تجريبية يدويًا للاختبار بنجاح.',
+        count: bots.length,
+        bots,
+      });
+    }
+
+    const botParams: CreateBotParams = body;
+    if (!botParams.type || !botParams.symbol) {
       return NextResponse.json(
         { success: false, error: 'Missing required fields: type and symbol.' },
         { status: 400 }
       );
     }
 
-    const engine = await getSharedBotEngine();
-    const bot = await engine.createBot(body);
+    const bot = await engine.createBot(botParams);
     const summary = engine.listBots().find((b) => b.id === bot.getId());
 
     return NextResponse.json({

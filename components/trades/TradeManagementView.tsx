@@ -38,6 +38,10 @@ import {
   Bot,
   Square,
   Lock,
+  RotateCcw,
+  BookmarkCheck,
+  SlidersHorizontal,
+  Scale,
 } from 'lucide-react';
 import {
   ConfirmedSymbolCost,
@@ -46,7 +50,16 @@ import {
   TradeCostConfig,
   TradeLevelsPlan,
   XRecoveryPlan,
-} from '@/lib/trade-manager/types';
+  TradingDefaultSettings,
+  ManualTradingInputsState,
+  loadDefaultTradingSettings,
+  saveDefaultTradingSettings,
+  resetDefaultSettingsToSystem,
+  loadManualTradingSettings,
+  saveManualTradingSettings,
+  mapDefaultsToManualInputs,
+  getSystemDefaultSettings,
+} from '@/lib/trade-manager';
 import { LevelCalculator } from '@/lib/trade-manager/level-calculator';
 import { sharedMarketDataStore, MarketPriceRecord } from '@/lib/market-data';
 import { BotSummaryDTO } from '@/lib/engine/types';
@@ -78,6 +91,11 @@ export function TradeManagementView({
   const [manualStopLoss, setManualStopLoss] = useState<string>('-2.5');
   const [manualEntryFee, setManualEntryFee] = useState<string>('');
   const [manualExitFeeRate, setManualExitFeeRate] = useState<string>('');
+  // Phase 6: Dual fee state inputs (Percentage % + Currency Amount USDT)
+  const [manualEntryFeePercent, setManualEntryFeePercent] = useState<string>('0.1');
+  const [manualEntryFeeAmount, setManualEntryFeeAmount] = useState<string>('0.05');
+  const [manualExitFeePercent, setManualExitFeePercent] = useState<string>('0.1');
+  const [manualExitFeeAmount, setManualExitFeeAmount] = useState<string>('0.05');
 
   // Bot Type & X/Recovery Settings
   const [botType, setBotType] = useState<'DEAL_BOT' | 'RANGE_BOT'>('DEAL_BOT');
@@ -109,6 +127,201 @@ export function TradeManagementView({
   ) => {
     setFeedback({ message, type });
     setTimeout(() => setFeedback(null), 6000);
+  };
+
+  // Phase 4 & Phase 6: Local Persistence & User-Configurable Defaults State
+  const [defaultSettings, setDefaultSettings] = useState<TradingDefaultSettings>(getSystemDefaultSettings);
+  const [isDefaultsModalOpen, setIsDefaultsModalOpen] = useState<boolean>(false);
+  const [editDefaultsForm, setEditDefaultsForm] = useState<TradingDefaultSettings>(getSystemDefaultSettings);
+  const [isInitializedFromStorage, setIsInitializedFromStorage] = useState<boolean>(false);
+
+  // Live computed preview of initial manual entry fee
+  const computedEntryFeePreview = React.useMemo(() => {
+    const amt = parseFloat(manualAmount) || 0;
+    const p = parseFloat(manualEntryFeePercent);
+    const a = parseFloat(manualEntryFeeAmount);
+    let total = 0;
+    if (!isNaN(p) && p > 0) total += amt * (p / 100);
+    if (!isNaN(a) && a > 0) total += a;
+    if (isNaN(p) && isNaN(a) && manualEntryFee) {
+      total = parseFloat(manualEntryFee) || 0;
+    }
+    return total;
+  }, [manualAmount, manualEntryFeePercent, manualEntryFeeAmount, manualEntryFee]);
+
+  // Phase 4 & Phase 6: Hydrate settings and manual inputs from local storage on mount
+  useEffect(() => {
+    const loadedDefaults = loadDefaultTradingSettings();
+    setDefaultSettings(loadedDefaults);
+    setEditDefaultsForm(loadedDefaults);
+
+    const savedInputs = loadManualTradingSettings();
+    if (savedInputs) {
+      if (savedInputs.manualSymbol && !initialSymbol) setManualSymbol(savedInputs.manualSymbol);
+      if (savedInputs.manualAmount) setManualAmount(savedInputs.manualAmount);
+      if (savedInputs.manualPrice && !initialPrice) setManualPrice(savedInputs.manualPrice);
+      if (savedInputs.manualStepPercent) setManualStep(savedInputs.manualStepPercent);
+      if (savedInputs.manualStopLossPercent) setManualStopLoss(savedInputs.manualStopLossPercent);
+      if (savedInputs.manualEntryFee) setManualEntryFee(savedInputs.manualEntryFee);
+      if (savedInputs.manualExitFeeRate) setManualExitFeeRate(savedInputs.manualExitFeeRate);
+      if (savedInputs.manualEntryFeePercent !== undefined) setManualEntryFeePercent(savedInputs.manualEntryFeePercent);
+      if (savedInputs.manualEntryFeeAmount !== undefined) setManualEntryFeeAmount(savedInputs.manualEntryFeeAmount);
+      if (savedInputs.manualExitFeePercent !== undefined) setManualExitFeePercent(savedInputs.manualExitFeePercent);
+      if (savedInputs.manualExitFeeAmount !== undefined) setManualExitFeeAmount(savedInputs.manualExitFeeAmount);
+      if (savedInputs.botType) setBotType(savedInputs.botType);
+      if (savedInputs.entryExecutionMode === 'PRE_ENTRY_RECOVERY') setEntryExecutionMode('WAIT_FOR_ENTRY');
+      else if (savedInputs.entryExecutionMode === 'IMMEDIATE_BUY') setEntryExecutionMode('IMMEDIATE_MARKET');
+      if (savedInputs.xStepPercent) setXStepPercent(savedInputs.xStepPercent);
+      if (savedInputs.xRangeCount) setXMaxLevels(savedInputs.xRangeCount);
+    } else {
+      // Initialize with user defaults if no manual drafts exist
+      if (!initialSymbol) setManualSymbol(loadedDefaults.defaultSymbol);
+      setManualAmount(String(loadedDefaults.defaultAmount));
+      setManualStep(String(loadedDefaults.defaultStepPercent));
+      setManualStopLoss(String(loadedDefaults.defaultStopLossPercent));
+      setManualEntryFee(String(loadedDefaults.defaultManualEntryCost));
+      setManualExitFeeRate(String(loadedDefaults.defaultManualExitCostRate));
+      setManualEntryFeePercent(String(loadedDefaults.defaultEntryFeePercent ?? 0.1));
+      setManualEntryFeeAmount(String(loadedDefaults.defaultEntryFeeAmount ?? 0.05));
+      setManualExitFeePercent(String(loadedDefaults.defaultExitFeePercent ?? 0.1));
+      setManualExitFeeAmount(String(loadedDefaults.defaultExitFeeAmount ?? 0.05));
+      setBotType(loadedDefaults.defaultBotType);
+      setEntryExecutionMode(loadedDefaults.defaultImmediateEntry ? 'IMMEDIATE_MARKET' : 'WAIT_FOR_ENTRY');
+      setXStepPercent(String(loadedDefaults.defaultXStepPercent));
+      setXMaxLevels(String(loadedDefaults.defaultXRangeCount));
+    }
+    setIsInitializedFromStorage(true);
+  }, [initialSymbol, initialPrice]);
+
+  // Phase 4 & Phase 6: Auto-save manual inputs to local storage on changes
+  useEffect(() => {
+    if (!isInitializedFromStorage) return;
+    saveManualTradingSettings({
+      manualSymbol,
+      manualAmount,
+      manualPrice,
+      manualStepPercent: manualStep,
+      manualStopLossPercent: manualStopLoss,
+      manualEntryFee,
+      manualExitFeeRate,
+      manualEntryFeePercent,
+      manualEntryFeeAmount,
+      manualExitFeePercent,
+      manualExitFeeAmount,
+      botType,
+      entryExecutionMode: entryExecutionMode === 'IMMEDIATE_MARKET' ? 'IMMEDIATE_BUY' : 'PRE_ENTRY_RECOVERY',
+      xStepPercent,
+      xRangeCount: xMaxLevels,
+    });
+  }, [
+    isInitializedFromStorage,
+    manualSymbol,
+    manualAmount,
+    manualPrice,
+    manualStep,
+    manualStopLoss,
+    manualEntryFee,
+    manualExitFeeRate,
+    manualEntryFeePercent,
+    manualEntryFeeAmount,
+    manualExitFeePercent,
+    manualExitFeeAmount,
+    botType,
+    entryExecutionMode,
+    xStepPercent,
+    xMaxLevels,
+  ]);
+
+  // Phase 4 & Phase 6 Handler: Save Current Form Inputs as User Default Settings
+  const handleSaveCurrentAsDefaults = () => {
+    const updated = saveDefaultTradingSettings({
+      defaultSymbol: manualSymbol.trim().toUpperCase() || 'BTCUSDT',
+      defaultAmount: parseFloat(manualAmount) || 100,
+      defaultStepPercent: parseFloat(manualStep) || 2.0,
+      defaultStopLossPercent: parseFloat(manualStopLoss) || 0.0,
+      defaultManualEntryCost: parseFloat(manualEntryFee) || computedEntryFeePreview || 0.15,
+      defaultManualExitCostRate: parseFloat(manualExitFeeRate) || (parseFloat(manualExitFeePercent) ? parseFloat(manualExitFeePercent) / 100 : 0.0015),
+      defaultEntryFeePercent: parseFloat(manualEntryFeePercent) || 0.1,
+      defaultEntryFeeAmount: parseFloat(manualEntryFeeAmount) || 0.0,
+      defaultExitFeePercent: parseFloat(manualExitFeePercent) || 0.1,
+      defaultExitFeeAmount: parseFloat(manualExitFeeAmount) || 0.0,
+      defaultBotType: botType,
+      defaultImmediateEntry: entryExecutionMode === 'IMMEDIATE_MARKET',
+      defaultXStepPercent: parseFloat(xStepPercent) || 2.0,
+      defaultXRangeCount: parseInt(xMaxLevels, 10) || 5,
+    });
+    setDefaultSettings(updated);
+    showFeedback('تم حفظ المدخلات الحالية محليًا كإعدادات افتراضية معتمدة بنجاح.', 'success');
+  };
+
+  // Phase 4 & Phase 6 Handler: Restore Inputs from User Default Settings
+  const handleRestoreDefaults = () => {
+    const currentDefaults = loadDefaultTradingSettings();
+    setDefaultSettings(currentDefaults);
+    setManualSymbol(currentDefaults.defaultSymbol);
+    setManualAmount(String(currentDefaults.defaultAmount));
+    setManualStep(String(currentDefaults.defaultStepPercent));
+    setManualStopLoss(String(currentDefaults.defaultStopLossPercent));
+    setManualEntryFee(String(currentDefaults.defaultManualEntryCost));
+    setManualExitFeeRate(String(currentDefaults.defaultManualExitCostRate));
+    setManualEntryFeePercent(String(currentDefaults.defaultEntryFeePercent ?? 0.1));
+    setManualEntryFeeAmount(String(currentDefaults.defaultEntryFeeAmount ?? 0.05));
+    setManualExitFeePercent(String(currentDefaults.defaultExitFeePercent ?? 0.1));
+    setManualExitFeeAmount(String(currentDefaults.defaultExitFeeAmount ?? 0.05));
+    setBotType(currentDefaults.defaultBotType);
+    setEntryExecutionMode(currentDefaults.defaultImmediateEntry ? 'IMMEDIATE_MARKET' : 'WAIT_FOR_ENTRY');
+    setXStepPercent(String(currentDefaults.defaultXStepPercent));
+    setXMaxLevels(String(currentDefaults.defaultXRangeCount));
+    showFeedback('تم استعادة الإعدادات الافتراضية بنجاح.', 'info');
+  };
+
+  // Phase 4 Handler: Open Defaults Modal
+  const handleOpenDefaultsModal = () => {
+    setEditDefaultsForm({ ...defaultSettings });
+    setIsDefaultsModalOpen(true);
+  };
+
+  // Phase 4 Handler: Save Customized Defaults from Modal
+  const handleSaveModalDefaults = () => {
+    const updated = saveDefaultTradingSettings(editDefaultsForm);
+    setDefaultSettings(updated);
+    setIsDefaultsModalOpen(false);
+    showFeedback('تم حفظ الإعدادات الافتراضية المخصصة محليًا بنجاح.', 'success');
+  };
+
+  // Phase 4 Handler: Reset Defaults to Factory System Defaults
+  const handleResetToSystemDefaults = () => {
+    const system = resetDefaultSettingsToSystem();
+    setDefaultSettings(system);
+    setEditDefaultsForm(system);
+    showFeedback('تمت إعادة ضبط الإعدادات الافتراضية إلى إعدادات النظام المصنعية.', 'info');
+  };
+
+  // Phase 5: Manually seed demo trade for testing upon explicit user request
+  const handleSeedDemoTrade = async () => {
+    setIsActionLoading(true);
+    try {
+      const res = await fetch('/api/trades', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'seed_demo',
+          symbol: manualSymbol.trim().toUpperCase() || 'BTCUSDT',
+          entryAmount: parseFloat(manualAmount) || 100,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showFeedback(data.message || 'تم إنشاء صفقة تجريبية يدويًا للاختبار بنجاح.', 'success');
+        await fetchTrades();
+      } else {
+        showFeedback(data.error || 'تعذر إنشاء الصفقة التجريبية', 'error');
+      }
+    } catch {
+      showFeedback('فشل الاتصال بمدير الصفقات', 'error');
+    } finally {
+      setIsActionLoading(false);
+    }
   };
 
   // Sync initial props if passed from Scanner
@@ -272,6 +485,10 @@ export function TradeManagementView({
           entryAmount: parsedAmount,
           entryPrice: manualPrice ? parseFloat(manualPrice) : undefined,
           stepPercent: manualStep ? parseFloat(manualStep) : undefined,
+          manualEntryFeePercent: manualEntryFeePercent !== '' ? parseFloat(manualEntryFeePercent) : undefined,
+          manualEntryFeeAmount: manualEntryFeeAmount !== '' ? parseFloat(manualEntryFeeAmount) : undefined,
+          manualExitFeePercent: manualExitFeePercent !== '' ? parseFloat(manualExitFeePercent) : undefined,
+          manualExitFeeAmount: manualExitFeeAmount !== '' ? parseFloat(manualExitFeeAmount) : undefined,
           manualEntryCost: manualEntryFee ? parseFloat(manualEntryFee) : undefined,
           manualExitCostRate: manualExitFeeRate ? parseFloat(manualExitFeeRate) / 100 : undefined,
           botType,
@@ -624,6 +841,60 @@ export function TradeManagementView({
           </div>
         </div>
 
+        {/* Phase 4: Local Trading Settings & User-Configurable Defaults Toolbar */}
+        <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-slate-950/70 border border-slate-800 text-xs">
+          <div className="flex items-center gap-2 text-slate-300">
+            <BookmarkCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span className="font-semibold text-slate-200">إعدادات التداول والمدخلات المحفوظة محليًا:</span>
+            <span className="text-[11px] text-slate-400 hidden sm:inline">
+              (الافتراضي: {defaultSettings.defaultSymbol} | {defaultSettings.defaultAmount} USDT | خطوة {defaultSettings.defaultStepPercent}%)
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleSaveCurrentAsDefaults}
+              title="حفظ المدخلات الحالية محليًا لتصبح هي الافتراضية دائمًا"
+              className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 text-xs font-medium flex items-center gap-1.5 transition-colors"
+            >
+              <Save className="w-3.5 h-3.5 text-emerald-400" />
+              <span>حفظ كافتراضي</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleRestoreDefaults}
+              title="استعادة القيم الافتراضية المحفوظة محليًا"
+              className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-xs font-medium flex items-center gap-1.5 transition-colors"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-cyan-400" />
+              <span>استعادة الافتراضي</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenDefaultsModal}
+              title="تعديل وتخصيص القيم الافتراضية العامة"
+              className="px-2.5 py-1 rounded bg-indigo-950/50 hover:bg-indigo-900/50 text-indigo-300 border border-indigo-500/40 text-xs font-medium flex items-center gap-1.5 transition-colors"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-400" />
+              <span>تعديل الافتراضيات</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSeedDemoTrade}
+              disabled={isActionLoading}
+              title="إنشاء صفقة تجريبية يدويًا للاختبار (المرحلة 5)"
+              className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 text-xs font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            >
+              <Play className="w-3.5 h-3.5 text-amber-400" />
+              <span>صفقة تجريبية للاختبار</span>
+            </button>
+          </div>
+        </div>
+
         {/* Saved Symbol Cost Badge */}
         {savedCostForManual && (
           <div className="p-2.5 rounded-lg bg-cyan-950/30 border border-cyan-500/30 text-cyan-300 text-xs flex items-center justify-between gap-2">
@@ -774,59 +1045,119 @@ export function TradeManagementView({
             </div>
           )}
 
-          {/* Optional Initial Manual Cost Inputs (Pre-Trade) */}
-          <div className="p-3 rounded-lg bg-slate-950/70 border border-slate-800/80 space-y-2">
-            <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
-              <span className="flex items-center gap-1.5">
+          {/* Phase 6: Dual Fee Configuration (نسبة مئوية % ومبلغ بالعملة USDT لكل من الدخول والخروج معًا) */}
+          <div className="p-3.5 rounded-lg bg-slate-950/80 border border-slate-800/80 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] text-slate-300">
+              <span className="flex items-center gap-1.5 font-bold text-indigo-300">
                 <Tag className="w-3.5 h-3.5 text-indigo-400" />
-                <span>بيانات تكلفة يدوية أولية (اختيارية — حتى لا تتعطل الصفقة لحين توفر البيانات الحقيقية):</span>
+                <span>إدخال العمولات اليدوية (المرحلة 6 — نسبة مئوية ومبلغ بالعملة معًا أو أحدهما):</span>
               </span>
-              <span className="text-[10px] text-slate-500">تستبدل تلقائيًا عند وصول البيانات الحقيقية</span>
+              <span className="text-[10px] text-emerald-400 font-medium">
+                مفصولة تمامًا عن قيم Binance الفعلية ومحمية من الاحتساب المزدوج
+              </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-slate-400 text-[11px] mb-1">عمولة الدخول الأولية (USDT):</label>
-                <input
-                  type="number"
-                  value={manualEntryFee}
-                  onChange={(e) => setManualEntryFee(e.target.value)}
-                  placeholder="مثال: 0.10 USDT"
-                  step="any"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 text-[11px] mb-1">معدل عمولة الخروج الأولي (%):</label>
-                <input
-                  type="number"
-                  value={manualExitFeeRate}
-                  onChange={(e) => setManualExitFeeRate(e.target.value)}
-                  placeholder="مثال: 0.1%"
-                  step="any"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div className="flex items-end">
-                <button
-                  type="submit"
-                  disabled={isActionLoading}
-                  className={`w-full py-2 px-3 rounded-lg text-slate-950 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50 ${
-                    entryExecutionMode === 'IMMEDIATE_MARKET'
-                      ? 'bg-emerald-500 hover:bg-emerald-400'
-                      : 'bg-amber-500 hover:bg-amber-400'
-                  }`}
-                >
-                  <Zap className="w-3.5 h-3.5 fill-current" />
-                  <span>
-                    {entryExecutionMode === 'IMMEDIATE_MARKET'
-                      ? 'فتح الصفقة وتنفيذ الشراء الفوري (Market)'
-                      : 'تهيئة البوت والانتظار (WAITING_FOR_ENTRY)'}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              {/* Entry Fee Box */}
+              <div className="p-3 rounded-lg bg-slate-900/80 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-semibold text-slate-300">
+                  <span className="flex items-center gap-1 text-emerald-300">
+                    <span>عمولة الدخول (Entry Fee):</span>
                   </span>
-                </button>
+                  <span className="text-[10px] text-emerald-400 font-mono bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-500/30">
+                    المجموع المحسوب: {computedEntryFeePreview.toFixed(4)} USDT
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 text-[10px] mb-1">النسبة المئوية (%):</label>
+                    <input
+                      type="number"
+                      value={manualEntryFeePercent}
+                      onChange={(e) => setManualEntryFeePercent(e.target.value)}
+                      placeholder="مثال: 0.1%"
+                      step="any"
+                      className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-slate-200 font-mono text-xs focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 text-[10px] mb-1">المبلغ بالعملة (USDT):</label>
+                    <input
+                      type="number"
+                      value={manualEntryFeeAmount}
+                      onChange={(e) => setManualEntryFeeAmount(e.target.value)}
+                      placeholder="مثال: 0.05 USDT"
+                      step="any"
+                      className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-slate-200 font-mono text-xs focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-500 leading-tight">
+                  يمكن إدخال النسبة أو المبلغ أو كليهما معًا (يحسب المجموع الفعلي تلقائيًا).
+                </p>
               </div>
+
+              {/* Exit Fee Box */}
+              <div className="p-3 rounded-lg bg-slate-900/80 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-semibold text-slate-300">
+                  <span className="flex items-center gap-1 text-indigo-300">
+                    <span>عمولة الخروج (Exit Fee):</span>
+                  </span>
+                  <span className="text-[10px] text-indigo-400 font-mono bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-500/30">
+                    {manualExitFeePercent || '0.1'}% + {manualExitFeeAmount || '0'} USDT
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 text-[10px] mb-1">النسبة المئوية (%):</label>
+                    <input
+                      type="number"
+                      value={manualExitFeePercent}
+                      onChange={(e) => setManualExitFeePercent(e.target.value)}
+                      placeholder="مثال: 0.1%"
+                      step="any"
+                      className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-slate-200 font-mono text-xs focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 text-[10px] mb-1">المبلغ بالعملة (USDT):</label>
+                    <input
+                      type="number"
+                      value={manualExitFeeAmount}
+                      onChange={(e) => setManualExitFeeAmount(e.target.value)}
+                      placeholder="مثال: 0.05 USDT"
+                      step="any"
+                      className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-slate-200 font-mono text-xs focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-500 leading-tight">
+                  تدخل النسبة والمبلغ في حساب سعر التعادل الصافي T0 بدقة متناهية.
+                </p>
+              </div>
+            </div>
+
+            {/* Submit Action */}
+            <div className="pt-1 flex items-center justify-between gap-3">
+              <span className="text-[10px] text-slate-500 hidden sm:inline">
+                تُستبدل العمولات اليدوية بعمولات Binance الفعلية المؤكدة فور تنفيذ الأمر لمنع الازدواجية.
+              </span>
+              <button
+                type="submit"
+                disabled={isActionLoading}
+                className={`py-2 px-4 rounded-lg text-slate-950 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50 ${
+                  entryExecutionMode === 'IMMEDIATE_MARKET'
+                    ? 'bg-emerald-500 hover:bg-emerald-400'
+                    : 'bg-amber-500 hover:bg-amber-400'
+                }`}
+              >
+                <Zap className="w-3.5 h-3.5 fill-current" />
+                <span>
+                  {entryExecutionMode === 'IMMEDIATE_MARKET'
+                    ? 'فتح الصفقة وتنفيذ الشراء الفوري (Market)'
+                    : 'تهيئة البوت والانتظار (WAITING_FOR_ENTRY)'}
+                </span>
+              </button>
             </div>
           </div>
         </form>
@@ -844,12 +1175,23 @@ export function TradeManagementView({
           </div>
 
           {activeTrades.length === 0 ? (
-            <div className="p-8 rounded-xl border border-slate-800 bg-slate-900/40 text-center space-y-2">
-              <Activity className="w-8 h-8 text-slate-600 mx-auto" />
-              <p className="text-xs text-slate-400">لا توجد صفقات مفتوحة حاليًا</p>
-              <p className="text-[11px] text-slate-500">
-                أنشئ صفقة من الأعلى أو اختر أصلاً من الـ Scanner
-              </p>
+            <div className="p-6 rounded-xl border border-slate-800 bg-slate-900/40 text-center space-y-3">
+              <Activity className="w-8 h-8 text-slate-500 mx-auto" />
+              <div className="space-y-1">
+                <p className="text-sm font-bold text-slate-200">لا توجد صفقات مفتوحة حاليًا</p>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  تم إيقاف الإنشاء التلقائي للصفقات التجريبية (المرحلة 5). يمكنك فتح صفقة جديدة من النموذج أعلاه أو إنشاء صفقة تجريبية للاختبار.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleSeedDemoTrade}
+                disabled={isActionLoading}
+                className="w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Play className="w-3.5 h-3.5 text-amber-400" />
+                <span>إنشاء صفقة تجريبية للاختبار</span>
+              </button>
             </div>
           ) : (
             <div className="space-y-2">
@@ -1123,10 +1465,23 @@ export function TradeManagementView({
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-slate-400 font-mono mt-1">
-                      متوسط سعر الدخول: {selectedTrade.entry.executionPrice} USDT • الكمية الإجمالية:{' '}
-                      {selectedTrade.entry.filledQuantity} • أمر الدخول: {selectedTrade.entry.orderId}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs font-mono">
+                      <span className="text-slate-400">سعر الدخول: <strong className="text-slate-200">{selectedTrade.entry.executionPrice} USDT</strong></span>
+                      <span className="text-slate-600">•</span>
+                      <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                        الكمية الابتدائية: <strong className="text-slate-100">{selectedTrade.initialQuantity ?? selectedTrade.entry.filledQuantity}</strong>
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                        الكمية المباعة: <strong>{selectedTrade.soldQuantity ?? 0}</strong>
+                      </span>
+                      <span className={`px-2 py-0.5 rounded font-bold border ${
+                        (selectedTrade.remainingQuantity ?? selectedTrade.entry.filledQuantity ?? 0) > 0
+                          ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                          : 'bg-slate-800 text-slate-400 border-slate-700'
+                      }`}>
+                        الكمية المتبقية: <strong>{selectedTrade.remainingQuantity ?? selectedTrade.entry.filledQuantity}</strong>
+                      </span>
+                    </div>
                     {selectedTrade.botId && (
                       <div className="flex items-center gap-2 mt-1.5 text-[11px] text-slate-400">
                         <span className="flex items-center gap-1 font-mono text-indigo-300">
@@ -1486,6 +1841,166 @@ export function TradeManagementView({
                   >
                     محاكاة وصول بيانات حقيقية وتحديث T0
                   </button>
+                </div>
+              </div>
+
+              {/* Card 2.5 (المرحلة 4 والمرحلة 6): فصل القيم اليدوية المعتمدة عن قيم تنفيذ Binance المؤكدة ومنع الازدواجية */}
+              <div className="bg-slate-900/80 border border-indigo-500/30 rounded-xl p-4 space-y-3 text-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <Scale className="w-4 h-4 text-indigo-400" />
+                    <span className="font-bold text-slate-100">
+                      فصل القيم اليدوية المعتمدة عن قيم تنفيذ Binance المؤكدة ومنع الازدواجية (المرحلة 6):
+                    </span>
+                  </div>
+
+                  <span className="px-2.5 py-0.5 rounded font-mono font-bold text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 self-start sm:self-auto">
+                    منع الاحتساب المزدوج: مُفعل (عزل كامل)
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Right Column: Approved Manual Values */}
+                  <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2">
+                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-1.5">
+                      <span className="font-bold text-amber-400 flex items-center gap-1.5">
+                        <Edit2 className="w-3.5 h-3.5 text-amber-400" />
+                        القيم اليدوية المعتمدة (Approved Manual)
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        {selectedTrade.manualValues?.approvedAt
+                          ? new Date(selectedTrade.manualValues.approvedAt).toLocaleTimeString('ar-EG')
+                          : 'وقت الإنشاء'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 font-mono text-[11px] text-slate-300">
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">المبلغ المطلوب:</span>
+                        <span className="font-bold text-slate-200">
+                          {selectedTrade.manualValues?.manualAmount ?? selectedTrade.requestedAmount} USDT
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">السعر المرجعي المقدر:</span>
+                        <span className="font-bold text-slate-200">
+                          {selectedTrade.manualValues?.manualPlannedPrice
+                            ? `${selectedTrade.manualValues.manualPlannedPrice} USDT`
+                            : 'سعر السوق المباشر'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">عمولة الدخول (% + USDT):</span>
+                        <span className="font-bold text-amber-400">
+                          {selectedTrade.manualValues?.manualEntryFeePercent !== undefined
+                            ? `${selectedTrade.manualValues.manualEntryFeePercent}%`
+                            : '-'}
+                          {' + '}
+                          {selectedTrade.manualValues?.manualEntryFeeAmount !== undefined
+                            ? `${selectedTrade.manualValues.manualEntryFeeAmount} U`
+                            : '-'}
+                          {' = '}
+                          {selectedTrade.manualValues?.manualEntryFee ?? selectedTrade.costConfig.entryCostAmount} USDT
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">عمولة الخروج (% + USDT):</span>
+                        <span className="font-bold text-indigo-300">
+                          {selectedTrade.manualValues?.manualExitFeePercent !== undefined
+                            ? `${selectedTrade.manualValues.manualExitFeePercent}%`
+                            : `${((selectedTrade.manualValues?.manualExitFeeRate || 0.001) * 100).toFixed(2)}%`}
+                          {' + '}
+                          {selectedTrade.manualValues?.manualExitFeeAmount !== undefined
+                            ? `${selectedTrade.manualValues.manualExitFeeAmount} USDT`
+                            : '0 USDT'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">نسبة الخطوة اليدوية (Step %):</span>
+                        <span className="font-bold text-slate-200">
+                          {selectedTrade.manualValues?.manualStepPercent ?? 2.0}%
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">وقف الخسارة الأولي:</span>
+                        <span className="font-bold text-slate-200">
+                          {selectedTrade.manualValues?.manualStopLossPercent ?? 0}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-slate-500 pt-1 border-t border-slate-900">
+                      قيم يدوية مثبتة بالكامل ولا تستبدل أو تتداخل مع عمولات المنصة الفعلية.
+                    </div>
+                  </div>
+
+                  {/* Left Column: Binance Actual Confirmed Values */}
+                  <div className="bg-slate-950 p-3 rounded-lg border border-emerald-950/40 space-y-2">
+                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-1.5">
+                      <span className="font-bold text-emerald-400 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        قيم تنفيذ Binance المؤكدة (Actual Confirmed)
+                      </span>
+                      <span className="text-[10px] text-emerald-500 font-mono">
+                        {selectedTrade.confirmedValues ? 'مؤكدة من المنصة' : 'في انتظار التنفيذ'}
+                      </span>
+                    </div>
+
+                    {selectedTrade.confirmedValues ? (
+                      <div className="grid grid-cols-2 gap-2 font-mono text-[11px] text-slate-300">
+                        <div>
+                          <span className="text-slate-500 block text-[10px]">سعر التنفيذ الفعلي:</span>
+                          <span className="font-bold text-emerald-300">
+                            {selectedTrade.confirmedValues.confirmedPrice} USDT
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 block text-[10px]">الكمية المنفذة المؤكدة:</span>
+                          <span className="font-bold text-emerald-300">
+                            {selectedTrade.confirmedValues.confirmedQuantity}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 block text-[10px]">المبلغ الفعلي المنفق:</span>
+                          <span className="font-bold text-slate-200">
+                            {selectedTrade.confirmedValues.confirmedQuoteAmount.toFixed(4)} USDT
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 block text-[10px]">عمولة Binance المؤكدة (شراء):</span>
+                          <span className="font-bold text-emerald-400">
+                            {selectedTrade.confirmedValues.confirmedEntryFee} USDT
+                          </span>
+                        </div>
+                        {selectedTrade.confirmedValues.confirmedExitFee !== undefined && (
+                          <div>
+                            <span className="text-slate-500 block text-[10px]">عمولة Binance المؤكدة (بيع):</span>
+                            <span className="font-bold text-emerald-400">
+                              {selectedTrade.confirmedValues.confirmedExitFee} USDT
+                            </span>
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-slate-500 block text-[10px]">حالة احتساب العمولات:</span>
+                          <span className="text-emerald-400 text-[10px] font-bold">
+                            لا تكرار — معتمدة منفردة
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 block text-[10px]">وقت التنفيذ الفعلي:</span>
+                          <span className="font-mono text-[10px] text-slate-400 block">
+                            {new Date(selectedTrade.confirmedValues.confirmedAt).toLocaleTimeString('ar-EG')}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="py-5 text-center text-slate-500 text-xs font-mono">
+                        لم يتم تأكيد التنفيذ من Binance بعد (الحالة: {selectedTrade.status})
+                      </div>
+                    )}
+                    <div className="text-[10px] text-emerald-500/80 pt-1 border-t border-slate-900">
+                      العمولة الفعلية المنفذة تستبدل التقدير اليدوي في حسابات T0 دون جمع العمولة مرتين.
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -2198,6 +2713,90 @@ export function TradeManagementView({
                   </div>
                 </div>
               )}
+
+              {/* Stage 3: Independent Partial Exits Ledger */}
+              {selectedTrade.partialExits && selectedTrade.partialExits.length > 0 && (
+                <div className="bg-slate-900/90 border border-indigo-500/30 rounded-xl p-5 space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-indigo-400" />
+                      <h4 className="font-bold text-xs text-slate-100">
+                        سجل عمليات البيع والتنفيذ الجزئي المستقل ({selectedTrade.partialExits.length})
+                      </h4>
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      كل جزء منفّذ يُحسب كعملية مستقلة بأرباحها وعمولاتها
+                    </span>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-lg border border-slate-800">
+                    <table className="w-full text-right text-xs">
+                      <thead className="bg-slate-950 text-slate-400 border-b border-slate-800 text-[11px]">
+                        <tr>
+                          <th className="py-2 px-2.5">#</th>
+                          <th className="py-2 px-2.5">سعر البيع</th>
+                          <th className="py-2 px-2.5">الكمية المباعة</th>
+                          <th className="py-2 px-2.5">الكمية المتبقية</th>
+                          <th className="py-2 px-2.5">العمولات المحسوبة</th>
+                          <th className="py-2 px-2.5">صافي الربح للجزء</th>
+                          <th className="py-2 px-2.5">التوقيت والسبب</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60 font-mono text-[11px]">
+                        {selectedTrade.partialExits.map((item, idx) => (
+                          <tr key={item.recordId} className="hover:bg-slate-800/30">
+                            <td className="py-2 px-2.5 text-slate-400">#{idx + 1}</td>
+                            <td className="py-2 px-2.5 font-bold text-slate-200">{item.executionPrice} USDT</td>
+                            <td className="py-2 px-2.5 text-amber-300 font-bold">{item.soldQuantity}</td>
+                            <td className="py-2 px-2.5 text-emerald-300">{item.remainingQuantityAfter}</td>
+                            <td className="py-2 px-2.5 text-slate-400">
+                              -{(item.entryCostQuotePortion + item.exitCostQuote).toFixed(4)} USDT
+                            </td>
+                            <td className="py-2 px-2.5">
+                              <span className={`px-1.5 py-0.5 rounded font-bold ${
+                                item.isProfitable
+                                  ? 'bg-emerald-500/10 text-emerald-400'
+                                  : 'bg-rose-500/10 text-rose-400'
+                              }`}>
+                                {item.netReturnQuote > 0 ? '+' : ''}{item.netReturnQuote} USDT ({item.netReturnPercent}%)
+                              </span>
+                            </td>
+                            <td className="py-2 px-2.5 text-slate-400 text-[10px]">
+                              {new Date(item.executedAt).toLocaleTimeString()} • {item.reason}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : activeTrades.length === 0 ? (
+            <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-10 text-center space-y-5">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mx-auto">
+                <TrendingUp className="w-8 h-8" />
+              </div>
+              <div className="max-w-md mx-auto space-y-2">
+                <h3 className="text-base font-bold text-slate-100">
+                  لا توجد صفقات مفتوحة أو مسجلة حاليًا
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  تم إيقاف الإنشاء التلقائي للصفقات التجريبية (المرحلة 5). مدير الصفقات في حالة تشغيل نظيفة (0 صفقات). يمكنك إنشاء صفقة جديدة من نموذج الإدخال بالأعلى أو إنشاء صفقة تجريبية للاختبار.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-center gap-3 flex-wrap pt-2">
+                <button
+                  type="button"
+                  onClick={handleSeedDemoTrade}
+                  disabled={isActionLoading}
+                  className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold flex items-center gap-2 transition-colors shadow-lg shadow-emerald-500/20"
+                >
+                  <Play className="w-4 h-4 fill-current" />
+                  <span>إنشاء صفقة تجريبية للاختبار</span>
+                </button>
+              </div>
             </div>
           ) : (
             <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-12 text-center text-slate-400 space-y-2">
@@ -2276,6 +2875,269 @@ export function TradeManagementView({
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Phase 4: Modal for Editing & Customizing Local Default Trading Settings */}
+      {isDefaultsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 text-right">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="w-5 h-5 text-indigo-400" />
+                <div>
+                  <h3 className="font-bold text-base text-slate-100">
+                    تخصيص القيم الافتراضية للتداول (المرحلة 4)
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    تُحفظ هذه الإعدادات محليًا وتستمر عند إغلاق التطبيق وإعادة فتحه
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDefaultsModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">زوج التداول الافتراضي:</label>
+                <input
+                  type="text"
+                  value={editDefaultsForm.defaultSymbol || ''}
+                  onChange={(e) =>
+                    setEditDefaultsForm((prev) => ({
+                      ...prev,
+                      defaultSymbol: e.target.value.toUpperCase(),
+                    }))
+                  }
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                  placeholder="BTCUSDT"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">المبلغ الافتراضي (USDT):</label>
+                <input
+                  type="number"
+                  value={editDefaultsForm.defaultAmount ?? ''}
+                  onChange={(e) =>
+                    setEditDefaultsForm((prev) => ({
+                      ...prev,
+                      defaultAmount: parseFloat(e.target.value) || 0,
+                    }))
+                  }
+                  step="any"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                  placeholder="100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">نسبة الخطوة الافتراضية (% Step):</label>
+                <input
+                  type="number"
+                  value={editDefaultsForm.defaultStepPercent ?? ''}
+                  onChange={(e) =>
+                    setEditDefaultsForm((prev) => ({
+                      ...prev,
+                      defaultStepPercent: parseFloat(e.target.value) || 0,
+                    }))
+                  }
+                  step="any"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                  placeholder="2.0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">وقف الخسارة الافتراضي (%):</label>
+                <input
+                  type="number"
+                  value={editDefaultsForm.defaultStopLossPercent ?? ''}
+                  onChange={(e) =>
+                    setEditDefaultsForm((prev) => ({
+                      ...prev,
+                      defaultStopLossPercent: parseFloat(e.target.value) || 0,
+                    }))
+                  }
+                  step="any"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                  placeholder="0.0 أو -2.5"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">عمولة الدخول الافتراضية (% نسبة):</label>
+                <input
+                  type="number"
+                  value={editDefaultsForm.defaultEntryFeePercent ?? ''}
+                  onChange={(e) =>
+                    setEditDefaultsForm((prev) => ({
+                      ...prev,
+                      defaultEntryFeePercent: parseFloat(e.target.value) || 0,
+                    }))
+                  }
+                  step="any"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                  placeholder="0.1"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">عمولة الدخول الافتراضية (USDT مبلغ):</label>
+                <input
+                  type="number"
+                  value={editDefaultsForm.defaultEntryFeeAmount ?? ''}
+                  onChange={(e) =>
+                    setEditDefaultsForm((prev) => ({
+                      ...prev,
+                      defaultEntryFeeAmount: parseFloat(e.target.value) || 0,
+                      defaultManualEntryCost: parseFloat(e.target.value) || 0,
+                    }))
+                  }
+                  step="any"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                  placeholder="0.05"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">عمولة الخروج الافتراضية (% نسبة):</label>
+                <input
+                  type="number"
+                  value={editDefaultsForm.defaultExitFeePercent ?? ''}
+                  onChange={(e) =>
+                    setEditDefaultsForm((prev) => ({
+                      ...prev,
+                      defaultExitFeePercent: parseFloat(e.target.value) || 0,
+                      defaultManualExitCostRate: (parseFloat(e.target.value) || 0) / 100,
+                    }))
+                  }
+                  step="any"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                  placeholder="0.1"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">عمولة الخروج الافتراضية (USDT مبلغ):</label>
+                <input
+                  type="number"
+                  value={editDefaultsForm.defaultExitFeeAmount ?? ''}
+                  onChange={(e) =>
+                    setEditDefaultsForm((prev) => ({
+                      ...prev,
+                      defaultExitFeeAmount: parseFloat(e.target.value) || 0,
+                    }))
+                  }
+                  step="any"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                  placeholder="0.05"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">نوع البوت الافتراضي:</label>
+                <select
+                  value={editDefaultsForm.defaultBotType || 'DEAL_BOT'}
+                  onChange={(e) =>
+                    setEditDefaultsForm((prev) => ({
+                      ...prev,
+                      defaultBotType: e.target.value as 'DEAL_BOT' | 'RANGE_BOT',
+                    }))
+                  }
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-sans focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="DEAL_BOT">صفقة عادية (DEAL_BOT)</option>
+                  <option value="RANGE_BOT">مسار عرضي وتعافي (RANGE_BOT + X)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">وضع التنفيذ الافتراضي:</label>
+                <select
+                  value={editDefaultsForm.defaultImmediateEntry ? 'IMMEDIATE' : 'WAIT'}
+                  onChange={(e) =>
+                    setEditDefaultsForm((prev) => ({
+                      ...prev,
+                      defaultImmediateEntry: e.target.value === 'IMMEDIATE',
+                    }))
+                  }
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-sans focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="IMMEDIATE">شراء فوري مباشر (Market)</option>
+                  <option value="WAIT">انتظار إشارة تعافي (Wait)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">خطوة التعافي الافتراضية X (%):</label>
+                <input
+                  type="number"
+                  value={editDefaultsForm.defaultXStepPercent ?? ''}
+                  onChange={(e) =>
+                    setEditDefaultsForm((prev) => ({
+                      ...prev,
+                      defaultXStepPercent: parseFloat(e.target.value) || 0,
+                    }))
+                  }
+                  step="any"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                  placeholder="2.0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">أقصى مستويات تعافي X:</label>
+                <input
+                  type="number"
+                  value={editDefaultsForm.defaultXRangeCount ?? ''}
+                  onChange={(e) =>
+                    setEditDefaultsForm((prev) => ({
+                      ...prev,
+                      defaultXRangeCount: parseInt(e.target.value, 10) || 0,
+                    }))
+                  }
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                  placeholder="5"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between border-t border-slate-800 pt-4 gap-3">
+              <button
+                type="button"
+                onClick={handleResetToSystemDefaults}
+                className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-rose-300 border border-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>إعادة تعيين للمصنع</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsDefaultsModalOpen(false)}
+                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveModalDefaults}
+                  className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-indigo-500/20 transition-colors"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>حفظ وتثبيت الافتراضيات</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

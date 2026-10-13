@@ -50,36 +50,76 @@ export class SymbolCostStore {
     entryAmount: number;
     manualEntryCost?: number;
     manualExitCostRate?: number;
+    manualEntryFeePercent?: number;
+    manualEntryFeeAmount?: number;
+    manualExitFeePercent?: number;
+    manualExitFeeAmount?: number;
   }): TradeCostConfig {
     const symbol = params.symbol.toUpperCase().trim();
     const saved = this.getConfirmedCost(symbol);
 
-    // If user explicitly provided manual values
-    if (params.manualEntryCost !== undefined || params.manualExitCostRate !== undefined) {
-      const entryCostAmount =
-        params.manualEntryCost !== undefined
+    const hasExplicitManual =
+      params.manualEntryFeePercent !== undefined ||
+      params.manualEntryFeeAmount !== undefined ||
+      params.manualExitFeePercent !== undefined ||
+      params.manualExitFeeAmount !== undefined ||
+      params.manualEntryCost !== undefined ||
+      params.manualExitCostRate !== undefined;
+
+    // Priority 1: User explicitly provided manual values (Percent, Amount, or Both)
+    if (hasExplicitManual) {
+      // 1. Calculate Entry Fee: Sum percent component + currency amount component
+      const entryPercent = params.manualEntryFeePercent !== undefined ? params.manualEntryFeePercent : undefined;
+      const entryFixedAmount =
+        params.manualEntryFeeAmount !== undefined
+          ? params.manualEntryFeeAmount
+          : params.manualEntryCost !== undefined
           ? params.manualEntryCost
-          : saved
-          ? params.entryAmount * saved.effectiveEntryRate
-          : params.entryAmount * 0.001; // initial estimate 0.1%
+          : 0;
+
+      let entryCostAmount = 0;
+      if (entryPercent !== undefined) {
+        entryCostAmount += params.entryAmount * (entryPercent / 100);
+      }
+      entryCostAmount += entryFixedAmount;
+
+      // If user provided neither percent nor amount for entry, use saved or baseline 0.1%
+      if (entryPercent === undefined && params.manualEntryFeeAmount === undefined && params.manualEntryCost === undefined) {
+        entryCostAmount = saved ? params.entryAmount * saved.effectiveEntryRate : params.entryAmount * 0.001;
+      }
 
       const entryCostRate =
         params.entryAmount > 0 ? entryCostAmount / params.entryAmount : 0.001;
 
-      const exitCostRate =
-        params.manualExitCostRate !== undefined
-          ? params.manualExitCostRate
-          : saved
-          ? saved.effectiveExitRate
-          : 0.001;
+      // 2. Calculate Exit Fee: Determine percent rate and currency amount component
+      let exitCostRate = 0.001;
+      let exitFeePercent = params.manualExitFeePercent;
+      if (params.manualExitFeePercent !== undefined) {
+        exitCostRate = params.manualExitFeePercent / 100;
+      } else if (params.manualExitCostRate !== undefined) {
+        exitCostRate = params.manualExitCostRate;
+        exitFeePercent = params.manualExitCostRate * 100;
+      } else if (saved) {
+        exitCostRate = saved.effectiveExitRate;
+        exitFeePercent = saved.effectiveExitRate * 100;
+      }
+
+      const exitFeeAmount =
+        params.manualExitFeeAmount !== undefined && params.manualExitFeeAmount >= 0
+          ? params.manualExitFeeAmount
+          : 0;
 
       return {
         entryCostAmount: Number(entryCostAmount.toFixed(8)),
         entryCostRate: Number(entryCostRate.toFixed(8)),
         exitCostRate: Number(exitCostRate.toFixed(8)),
+        entryFeePercent: entryPercent,
+        entryFeeAmount: entryFixedAmount,
+        exitFeePercent,
+        exitFeeAmount,
         source: 'MANUAL_USER_INPUT',
         updatedAt: Date.now(),
-        description: 'بيانات تكلفة يدوية أولية مدخلة من المستخدم',
+        description: 'بيانات تكلفة يدوية مخصصة (نسبة ومبلغ بالعملة) مدخلة من المستخدم',
         isRealConfirmed: false,
       };
     }
@@ -91,6 +131,10 @@ export class SymbolCostStore {
         entryCostAmount,
         entryCostRate: saved.effectiveEntryRate,
         exitCostRate: saved.effectiveExitRate,
+        entryFeePercent: saved.effectiveEntryRate * 100,
+        entryFeeAmount: 0,
+        exitFeePercent: saved.effectiveExitRate * 100,
+        exitFeeAmount: 0,
         source: 'REAL_CONFIRMED_SAVED',
         updatedAt: saved.confirmedAt,
         description: `بيانات حقيقية محفوظة سابقًا للعملة ${symbol}`,
@@ -106,6 +150,10 @@ export class SymbolCostStore {
       entryCostAmount: fallbackAmount,
       entryCostRate: fallbackRate,
       exitCostRate: fallbackRate,
+      entryFeePercent: 0.1,
+      entryFeeAmount: 0,
+      exitFeePercent: 0.1,
+      exitFeeAmount: 0,
       source: 'MANUAL_USER_INPUT',
       updatedAt: Date.now(),
       description: 'بيانات يدوية افتراضية أولية لعدم توفر بيانات سابقة',

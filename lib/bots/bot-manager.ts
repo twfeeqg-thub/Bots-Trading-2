@@ -19,8 +19,8 @@ export class BotCoreManager {
   private listeners: Set<BotRegistryListener> = new Set();
 
   private constructor() {
-    // Seed with initial exemplar bots: one Range Bot and one Deal Bot
-    this.seedDefaultBots();
+    // Phase 5: Demo bots are NOT seeded automatically on startup.
+    // Call seedDemoBots() manually if test data is required.
   }
 
   public static getInstance(): BotCoreManager {
@@ -97,6 +97,10 @@ export class BotCoreManager {
     return Array.from(this.bots.values());
   }
 
+  public listBots(): BotInstance[] {
+    return this.getAllBots();
+  }
+
   /**
    * Registers an externally managed/restored BotInstance into the registry.
    */
@@ -143,9 +147,14 @@ export class BotCoreManager {
   }
 
   /**
-   * Seed two reference bots (one of each supported type).
+   * Phase 5: Manually seed reference exemplar bots for testing upon explicit request.
+   * Never called automatically on startup.
    */
-  private seedDefaultBots(): void {
+  public seedDemoBots(): void {
+    if (this.bots.has('bot_range_eth_sample') && this.bots.has('bot_deal_sol_sample')) {
+      return;
+    }
+
     // 1. Sideways Range Bot exemplar
     this.createBot({
       id: 'bot_range_eth_sample',
@@ -195,6 +204,10 @@ export class BotCoreManager {
         onStateChange: true,
       },
     });
+  }
+
+  public seedDefaultBots(): void {
+    this.seedDemoBots();
   }
 }
 
