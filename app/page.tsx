@@ -14,9 +14,11 @@ import {
   ChevronUp,
   Globe
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { PWAInstallButton } from '@/components/pwa/PWAInstallPrompt';
 import { SessionStatusBadge } from '@/components/markets/SessionStatusBadge';
-import { useTheme } from '@/components/theme/ThemeContext';
+import { useTheme, ACCENT_PALETTES } from '@/components/theme/ThemeContext';
 import { ScannerView } from '@/components/scanner/ScannerView';
 import { ChartsView } from '@/components/charts/ChartsView';
 import { TradeManagementView } from '@/components/trades/TradeManagementView';
@@ -26,7 +28,8 @@ import { AssistantFloatingButton } from '@/components/assistant/AssistantFloatin
 import { AssistantModal } from '@/components/assistant/AssistantModal';
 
 export default function HomePage() {
-  const { isLight } = useTheme();
+  const { isLight, accent } = useTheme();
+  const currentPalette = ACCENT_PALETTES[accent] || ACCENT_PALETTES.gold;
   const [activeTab, setActiveTab] = useState<'scanner' | 'charts' | 'bots' | 'execution' | 'pnl' | 'markets'>('scanner');
   const [selectedAssetForChart, setSelectedAssetForChart] = useState<string | null>(null);
   const [selectedAssetForTrade, setSelectedAssetForTrade] = useState<{ symbol: string; price?: number } | null>(null);
@@ -55,56 +58,69 @@ export default function HomePage() {
       <header
         id="main-header"
         suppressHydrationWarning
-        className={`sticky top-0 z-40 border-b backdrop-blur-md px-4 py-3 sm:px-6 transition-colors duration-200 ${
+        className={`sticky top-0 z-40 border-b backdrop-blur-md px-3 sm:px-6 py-2.5 sm:py-3 transition-colors duration-200 ${
           isLight
             ? 'border-slate-200 bg-white/95 text-slate-900 shadow-xs'
             : 'border-slate-800 bg-slate-900/90 text-slate-100'
         }`}
       >
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-lg border flex items-center justify-center ${
-              isLight ? 'bg-emerald-50 border-emerald-300 text-emerald-600' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-            }`}>
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+          {/* Brand & Identity */}
+          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+            <div 
+              className="w-9 h-9 rounded-xl border flex items-center justify-center transition-all duration-300 shadow-xs"
+              style={{
+                backgroundColor: currentPalette.badgeBg,
+                borderColor: currentPalette.badgeBorder,
+                color: currentPalette.primaryColor,
+              }}
+            >
               <Radar className="w-5 h-5 animate-pulse" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className={`font-semibold text-base sm:text-lg tracking-tight ${
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h1 className={`font-bold text-sm sm:text-lg tracking-tight ${
                   isLight ? 'text-slate-900' : 'text-slate-100'
                 }`}>
                   بوت(٢) مراقبة صعود العملات
                 </h1>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${
-                  isLight
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                }`}>
+                <span 
+                  className="text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-semibold border transition-all duration-200"
+                  style={{
+                    backgroundColor: currentPalette.badgeBg,
+                    borderColor: currentPalette.badgeBorder,
+                    color: currentPalette.primaryColor,
+                  }}
+                >
                   مشروع Q
                 </span>
               </div>
-              <p className={`text-xs hidden sm:block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+              <p className={`text-[11px] hidden lg:block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                 تطبيق بوتات مراقبة العملات وإجراء الصفقات — شاشة البوتات وطبقة التداول V1
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Center / Navigation Actions */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5">
             {/* Desktop Navigation Tabs */}
-            <div className={`hidden md:flex items-center gap-1 p-1 rounded-lg border text-xs ${
+            <div className={`hidden md:flex items-center gap-1 p-1 rounded-xl border text-xs ${
               isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-950/80 border-slate-800'
             }`}>
               <button
                 type="button"
                 onClick={() => setActiveTab('scanner')}
-                className={`px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
+                style={{
+                  backgroundColor: activeTab === 'scanner' ? currentPalette.primaryColor : undefined,
+                  color: activeTab === 'scanner' ? (isLight ? '#09090b' : '#09090b') : undefined,
+                  borderColor: activeTab === 'scanner' ? currentPalette.primaryColor : undefined,
+                }}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'scanner'
-                    ? isLight
-                      ? 'bg-emerald-600 text-white shadow-xs font-semibold'
-                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    ? 'shadow-xs scale-[1.02]'
                     : isLight
-                    ? 'text-slate-600 hover:text-slate-900'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
                 }`}
               >
                 <Radar className="w-3.5 h-3.5" />
@@ -114,14 +130,17 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => setActiveTab('charts')}
-                className={`px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
+                style={{
+                  backgroundColor: activeTab === 'charts' ? currentPalette.primaryColor : undefined,
+                  color: activeTab === 'charts' ? '#09090b' : undefined,
+                  borderColor: activeTab === 'charts' ? currentPalette.primaryColor : undefined,
+                }}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'charts'
-                    ? isLight
-                      ? 'bg-emerald-600 text-white shadow-xs font-semibold'
-                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    ? 'shadow-xs scale-[1.02]'
                     : isLight
-                    ? 'text-slate-600 hover:text-slate-900'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
                 }`}
               >
                 <LineChart className="w-3.5 h-3.5" />
@@ -131,14 +150,17 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => setActiveTab('execution')}
-                className={`px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
+                style={{
+                  backgroundColor: activeTab === 'execution' || activeTab === 'bots' ? currentPalette.primaryColor : undefined,
+                  color: activeTab === 'execution' || activeTab === 'bots' ? '#09090b' : undefined,
+                  borderColor: activeTab === 'execution' || activeTab === 'bots' ? currentPalette.primaryColor : undefined,
+                }}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'execution' || activeTab === 'bots'
-                    ? isLight
-                      ? 'bg-emerald-600 text-white shadow-xs font-semibold'
-                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    ? 'shadow-xs scale-[1.02]'
                     : isLight
-                    ? 'text-slate-600 hover:text-slate-900'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
                 }`}
               >
                 <TrendingUp className="w-3.5 h-3.5" />
@@ -148,14 +170,17 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => setActiveTab('pnl')}
-                className={`px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
+                style={{
+                  backgroundColor: activeTab === 'pnl' ? currentPalette.primaryColor : undefined,
+                  color: activeTab === 'pnl' ? '#09090b' : undefined,
+                  borderColor: activeTab === 'pnl' ? currentPalette.primaryColor : undefined,
+                }}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'pnl'
-                    ? isLight
-                      ? 'bg-emerald-600 text-white shadow-xs font-semibold'
-                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    ? 'shadow-xs scale-[1.02]'
                     : isLight
-                    ? 'text-slate-600 hover:text-slate-900'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
                 }`}
               >
                 <Activity className="w-3.5 h-3.5" />
@@ -165,14 +190,17 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => setActiveTab('markets')}
-                className={`px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
+                style={{
+                  backgroundColor: activeTab === 'markets' ? currentPalette.primaryColor : undefined,
+                  color: activeTab === 'markets' ? '#09090b' : undefined,
+                  borderColor: activeTab === 'markets' ? currentPalette.primaryColor : undefined,
+                }}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'markets'
-                    ? isLight
-                      ? 'bg-emerald-600 text-white shadow-xs font-semibold'
-                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    ? 'shadow-xs scale-[1.02]'
                     : isLight
-                    ? 'text-slate-600 hover:text-slate-900'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
                 }`}
               >
                 <Globe className="w-3.5 h-3.5" />
@@ -183,30 +211,43 @@ export default function HomePage() {
             {/* Live Session Status Badge */}
             <SessionStatusBadge onClick={() => setActiveTab('markets')} />
 
-            <div className={`hidden xl:flex items-center gap-1.5 px-3 py-1 rounded-md border text-xs ${
-              isLight
-                ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                : 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300'
-            }`}>
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="font-medium">مدير الصفقة مُفعل</span>
+            {/* Active Position Manager Status Pill */}
+            <div 
+              className="hidden xl:flex items-center gap-1.5 px-3 py-1 rounded-xl border text-xs transition-colors"
+              style={{
+                backgroundColor: currentPalette.badgeBg,
+                borderColor: currentPalette.badgeBorder,
+                color: currentPalette.primaryColor,
+              }}
+            >
+              <span 
+                className="w-2 h-2 rounded-full animate-pulse"
+                style={{ backgroundColor: currentPalette.primaryColor }}
+              />
+              <span className="font-semibold">مدير الصفقة مُفعل</span>
             </div>
 
-            {/* Dark Mode / Light Mode Toggle */}
+            {/* In-App PWA Install Button */}
+            <PWAInstallButton />
+
+            {/* Permanent & Prominent Theme Palette Button */}
             <ThemeToggle />
           </div>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6 pb-24 md:pb-8">
+      <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 space-y-6 pb-24 md:pb-8">
         {/* Collapsible Architecture Pipeline Banner */}
-        <section id="project-flow-banner" className={`rounded-xl border p-4 shadow-xs transition-colors ${
+        <section id="project-flow-banner" className={`rounded-2xl border p-4 shadow-xs transition-colors ${
           isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-slate-800'
         }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-emerald-500" />
+              <Activity 
+                className="w-4 h-4 transition-colors" 
+                style={{ color: currentPalette.primaryColor }} 
+              />
               <span className={`text-xs font-semibold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
                 مشروع Q — التدفق العام: Market Data → Scanner → Alert → Execution → Real P/L
               </span>
@@ -214,7 +255,7 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => setIsPipelineExpanded(!isPipelineExpanded)}
-              className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors ${
+              className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
                 isLight ? 'bg-slate-100 text-slate-600 hover:text-slate-900' : 'bg-slate-800/60 text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -231,15 +272,37 @@ export default function HomePage() {
                   <span className="text-slate-200 font-medium">Market Data</span>
                   <span className="text-[10px] text-slate-500 block">!miniTicker@arr</span>
                 </div>
-                <div className="p-2 rounded bg-emerald-950/40 border border-emerald-500/40">
-                  <span className="text-emerald-400 font-mono block">02 [المرحلة 1]</span>
-                  <span className="text-emerald-200 font-medium">Scanner</span>
-                  <span className="text-[10px] text-emerald-400 block">رصد الصعود</span>
+                <div 
+                  className="p-2 rounded border"
+                  style={{
+                    backgroundColor: currentPalette.badgeBg,
+                    borderColor: currentPalette.badgeBorder,
+                  }}
+                >
+                  <span 
+                    className="font-mono block"
+                    style={{ color: currentPalette.primaryColor }}
+                  >
+                    02 [المرحلة 1]
+                  </span>
+                  <span className="font-semibold block" style={{ color: currentPalette.primaryColor }}>Scanner</span>
+                  <span className="text-[10px] block opacity-80" style={{ color: currentPalette.primaryColor }}>رصد الصعود</span>
                 </div>
-                <div className="p-2 rounded bg-emerald-950/40 border border-emerald-500/40">
-                  <span className="text-emerald-400 font-mono block">03 [المرحلة 2]</span>
-                  <span className="text-emerald-200 font-medium">Basic Chart</span>
-                  <span className="text-[10px] text-emerald-400 block">شارت تفاعلي</span>
+                <div 
+                  className="p-2 rounded border"
+                  style={{
+                    backgroundColor: currentPalette.badgeBg,
+                    borderColor: currentPalette.badgeBorder,
+                  }}
+                >
+                  <span 
+                    className="font-mono block"
+                    style={{ color: currentPalette.primaryColor }}
+                  >
+                    03 [المرحلة 2]
+                  </span>
+                  <span className="font-semibold block" style={{ color: currentPalette.primaryColor }}>Basic Chart</span>
+                  <span className="text-[10px] block opacity-80" style={{ color: currentPalette.primaryColor }}>شارت تفاعلي</span>
                 </div>
                 <div className="p-2 rounded bg-slate-950 border border-slate-800">
                   <span className="text-slate-400 font-mono block">04</span>
@@ -285,41 +348,51 @@ export default function HomePage() {
           )}
         </section>
 
-        {/* Tab Content Display */}
-        {activeTab === 'scanner' ? (
-          <section id="scanner-main-section">
-            <ScannerView
-              onSelectAssetForChart={handleAssetSelect}
-              onSelectAssetForTrade={handleAssetTradeSelect}
-            />
-          </section>
-        ) : activeTab === 'charts' ? (
-          <section id="charts-main-section">
-            <ChartsView
-              initialSymbol={selectedAssetForChart}
-              onBackToScanner={() => setActiveTab('scanner')}
-            />
-          </section>
-        ) : activeTab === 'bots' || activeTab === 'execution' ? (
-          <section id="trades-main-section">
-            <TradeManagementView
-              initialSymbol={selectedAssetForTrade?.symbol}
-              initialPrice={selectedAssetForTrade?.price}
-            />
-          </section>
-        ) : activeTab === 'pnl' ? (
-          <section id="analytics-main-section">
-            <AnalyticsView />
-          </section>
-        ) : (
-          <section id="markets-main-section">
-            <GlobalMarketsView
-              onNavigateToScanner={() => setActiveTab('scanner')}
-              onNavigateToCharts={() => setActiveTab('charts')}
-              onNavigateToBots={() => setActiveTab('execution')}
-            />
-          </section>
-        )}
+        {/* Tab Content Display with Framer Motion subtle fade and slide up */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {activeTab === 'scanner' ? (
+              <section id="scanner-main-section">
+                <ScannerView
+                  onSelectAssetForChart={handleAssetSelect}
+                  onSelectAssetForTrade={handleAssetTradeSelect}
+                />
+              </section>
+            ) : activeTab === 'charts' ? (
+              <section id="charts-main-section">
+                <ChartsView
+                  initialSymbol={selectedAssetForChart}
+                  onBackToScanner={() => setActiveTab('scanner')}
+                />
+              </section>
+            ) : activeTab === 'bots' || activeTab === 'execution' ? (
+              <section id="trades-main-section">
+                <TradeManagementView
+                  initialSymbol={selectedAssetForTrade?.symbol}
+                  initialPrice={selectedAssetForTrade?.price}
+                />
+              </section>
+            ) : activeTab === 'pnl' ? (
+              <section id="analytics-main-section">
+                <AnalyticsView />
+              </section>
+            ) : (
+              <section id="markets-main-section">
+                <GlobalMarketsView
+                  onNavigateToScanner={() => setActiveTab('scanner')}
+                  onNavigateToCharts={() => setActiveTab('charts')}
+                  onNavigateToBots={() => setActiveTab('execution')}
+                />
+              </section>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Fixed Bottom Navigation (Mobile-First compliant as specified in Section 9) */}
@@ -331,9 +404,13 @@ export default function HomePage() {
             id="nav-tab-scanner"
             type="button"
             onClick={() => setActiveTab('scanner')}
-            className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-lg text-[10px] font-medium transition-colors ${
+            style={{
+              color: activeTab === 'scanner' ? currentPalette.primaryColor : undefined,
+              backgroundColor: activeTab === 'scanner' ? currentPalette.badgeBg : undefined,
+            }}
+            className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-xl text-[10px] font-medium transition-colors ${
               activeTab === 'scanner' 
-                ? isLight ? 'text-emerald-700 bg-emerald-50 font-bold' : 'text-emerald-400 bg-emerald-500/10'
+                ? 'font-bold'
                 : isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -345,9 +422,13 @@ export default function HomePage() {
             id="nav-tab-charts"
             type="button"
             onClick={() => setActiveTab('charts')}
-            className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-lg text-[10px] font-medium transition-colors ${
+            style={{
+              color: activeTab === 'charts' ? currentPalette.primaryColor : undefined,
+              backgroundColor: activeTab === 'charts' ? currentPalette.badgeBg : undefined,
+            }}
+            className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-xl text-[10px] font-medium transition-colors ${
               activeTab === 'charts' 
-                ? isLight ? 'text-emerald-700 bg-emerald-50 font-bold' : 'text-emerald-400 bg-emerald-500/10'
+                ? 'font-bold'
                 : isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -359,9 +440,13 @@ export default function HomePage() {
             id="nav-tab-execution"
             type="button"
             onClick={() => setActiveTab('execution')}
-            className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-lg text-[10px] font-medium transition-colors ${
+            style={{
+              color: (activeTab === 'execution' || activeTab === 'bots') ? currentPalette.primaryColor : undefined,
+              backgroundColor: (activeTab === 'execution' || activeTab === 'bots') ? currentPalette.badgeBg : undefined,
+            }}
+            className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-xl text-[10px] font-medium transition-colors ${
               activeTab === 'execution' || activeTab === 'bots'
-                ? isLight ? 'text-emerald-700 bg-emerald-50 font-bold' : 'text-emerald-400 bg-emerald-500/10'
+                ? 'font-bold'
                 : isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -373,9 +458,13 @@ export default function HomePage() {
             id="nav-tab-pnl"
             type="button"
             onClick={() => setActiveTab('pnl')}
-            className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-lg text-[10px] font-medium transition-colors ${
+            style={{
+              color: activeTab === 'pnl' ? currentPalette.primaryColor : undefined,
+              backgroundColor: activeTab === 'pnl' ? currentPalette.badgeBg : undefined,
+            }}
+            className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-xl text-[10px] font-medium transition-colors ${
               activeTab === 'pnl' 
-                ? isLight ? 'text-emerald-700 bg-emerald-50 font-bold' : 'text-emerald-400 bg-emerald-500/10'
+                ? 'font-bold'
                 : isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -387,9 +476,13 @@ export default function HomePage() {
             id="nav-tab-markets"
             type="button"
             onClick={() => setActiveTab('markets')}
-            className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-lg text-[10px] font-medium transition-colors ${
+            style={{
+              color: activeTab === 'markets' ? currentPalette.primaryColor : undefined,
+              backgroundColor: activeTab === 'markets' ? currentPalette.badgeBg : undefined,
+            }}
+            className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-xl text-[10px] font-medium transition-colors ${
               activeTab === 'markets' 
-                ? isLight ? 'text-emerald-700 bg-emerald-50 font-bold' : 'text-emerald-400 bg-emerald-500/10'
+                ? 'font-bold'
                 : isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
             }`}
           >

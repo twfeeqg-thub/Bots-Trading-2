@@ -151,46 +151,50 @@ export function TradeManagementView({
 
   // Phase 4 & Phase 6: Hydrate settings and manual inputs from local storage on mount
   useEffect(() => {
-    const loadedDefaults = loadDefaultTradingSettings();
-    setDefaultSettings(loadedDefaults);
-    setEditDefaultsForm(loadedDefaults);
+    const timer = setTimeout(() => {
+      const loadedDefaults = loadDefaultTradingSettings();
+      setDefaultSettings(loadedDefaults);
+      setEditDefaultsForm(loadedDefaults);
 
-    const savedInputs = loadManualTradingSettings();
-    if (savedInputs) {
-      if (savedInputs.manualSymbol && !initialSymbol) setManualSymbol(savedInputs.manualSymbol);
-      if (savedInputs.manualAmount) setManualAmount(savedInputs.manualAmount);
-      if (savedInputs.manualPrice && !initialPrice) setManualPrice(savedInputs.manualPrice);
-      if (savedInputs.manualStepPercent) setManualStep(savedInputs.manualStepPercent);
-      if (savedInputs.manualStopLossPercent) setManualStopLoss(savedInputs.manualStopLossPercent);
-      if (savedInputs.manualEntryFee) setManualEntryFee(savedInputs.manualEntryFee);
-      if (savedInputs.manualExitFeeRate) setManualExitFeeRate(savedInputs.manualExitFeeRate);
-      if (savedInputs.manualEntryFeePercent !== undefined) setManualEntryFeePercent(savedInputs.manualEntryFeePercent);
-      if (savedInputs.manualEntryFeeAmount !== undefined) setManualEntryFeeAmount(savedInputs.manualEntryFeeAmount);
-      if (savedInputs.manualExitFeePercent !== undefined) setManualExitFeePercent(savedInputs.manualExitFeePercent);
-      if (savedInputs.manualExitFeeAmount !== undefined) setManualExitFeeAmount(savedInputs.manualExitFeeAmount);
-      if (savedInputs.botType) setBotType(savedInputs.botType);
-      if (savedInputs.entryExecutionMode === 'PRE_ENTRY_RECOVERY') setEntryExecutionMode('WAIT_FOR_ENTRY');
-      else if (savedInputs.entryExecutionMode === 'IMMEDIATE_BUY') setEntryExecutionMode('IMMEDIATE_MARKET');
-      if (savedInputs.xStepPercent) setXStepPercent(savedInputs.xStepPercent);
-      if (savedInputs.xRangeCount) setXMaxLevels(savedInputs.xRangeCount);
-    } else {
-      // Initialize with user defaults if no manual drafts exist
-      if (!initialSymbol) setManualSymbol(loadedDefaults.defaultSymbol);
-      setManualAmount(String(loadedDefaults.defaultAmount));
-      setManualStep(String(loadedDefaults.defaultStepPercent));
-      setManualStopLoss(String(loadedDefaults.defaultStopLossPercent));
-      setManualEntryFee(String(loadedDefaults.defaultManualEntryCost));
-      setManualExitFeeRate(String(loadedDefaults.defaultManualExitCostRate));
-      setManualEntryFeePercent(String(loadedDefaults.defaultEntryFeePercent ?? 0.1));
-      setManualEntryFeeAmount(String(loadedDefaults.defaultEntryFeeAmount ?? 0.05));
-      setManualExitFeePercent(String(loadedDefaults.defaultExitFeePercent ?? 0.1));
-      setManualExitFeeAmount(String(loadedDefaults.defaultExitFeeAmount ?? 0.05));
-      setBotType(loadedDefaults.defaultBotType);
-      setEntryExecutionMode(loadedDefaults.defaultImmediateEntry ? 'IMMEDIATE_MARKET' : 'WAIT_FOR_ENTRY');
-      setXStepPercent(String(loadedDefaults.defaultXStepPercent));
-      setXMaxLevels(String(loadedDefaults.defaultXRangeCount));
-    }
-    setIsInitializedFromStorage(true);
+      const savedInputs = loadManualTradingSettings();
+      if (savedInputs) {
+        if (savedInputs.manualSymbol && !initialSymbol) setManualSymbol(savedInputs.manualSymbol);
+        if (savedInputs.manualAmount) setManualAmount(savedInputs.manualAmount);
+        if (savedInputs.manualPrice && !initialPrice) setManualPrice(savedInputs.manualPrice);
+        if (savedInputs.manualStepPercent) setManualStep(savedInputs.manualStepPercent);
+        if (savedInputs.manualStopLossPercent) setManualStopLoss(savedInputs.manualStopLossPercent);
+        if (savedInputs.manualEntryFee) setManualEntryFee(savedInputs.manualEntryFee);
+        if (savedInputs.manualExitFeeRate) setManualExitFeeRate(savedInputs.manualExitFeeRate);
+        if (savedInputs.manualEntryFeePercent !== undefined) setManualEntryFeePercent(savedInputs.manualEntryFeePercent);
+        if (savedInputs.manualEntryFeeAmount !== undefined) setManualEntryFeeAmount(savedInputs.manualEntryFeeAmount);
+        if (savedInputs.manualExitFeePercent !== undefined) setManualExitFeePercent(savedInputs.manualExitFeePercent);
+        if (savedInputs.manualExitFeeAmount !== undefined) setManualExitFeeAmount(savedInputs.manualExitFeeAmount);
+        if (savedInputs.botType) setBotType(savedInputs.botType);
+        if (savedInputs.entryExecutionMode === 'PRE_ENTRY_RECOVERY') setEntryExecutionMode('WAIT_FOR_ENTRY');
+        else if (savedInputs.entryExecutionMode === 'IMMEDIATE_BUY') setEntryExecutionMode('IMMEDIATE_MARKET');
+        if (savedInputs.xStepPercent) setXStepPercent(savedInputs.xStepPercent);
+        if (savedInputs.xRangeCount) setXMaxLevels(savedInputs.xRangeCount);
+      } else {
+        // Initialize with user defaults if no manual drafts exist
+        if (!initialSymbol) setManualSymbol(loadedDefaults.defaultSymbol);
+        setManualAmount(String(loadedDefaults.defaultAmount));
+        setManualStep(String(loadedDefaults.defaultStepPercent));
+        setManualStopLoss(String(loadedDefaults.defaultStopLossPercent));
+        setManualEntryFee(String(loadedDefaults.defaultManualEntryCost));
+        setManualExitFeeRate(String(loadedDefaults.defaultManualExitCostRate));
+        setManualEntryFeePercent(String(loadedDefaults.defaultEntryFeePercent ?? 0.1));
+        setManualEntryFeeAmount(String(loadedDefaults.defaultEntryFeeAmount ?? 0.05));
+        setManualExitFeePercent(String(loadedDefaults.defaultExitFeePercent ?? 0.1));
+        setManualExitFeeAmount(String(loadedDefaults.defaultExitFeeAmount ?? 0.05));
+        setBotType(loadedDefaults.defaultBotType);
+        setEntryExecutionMode(loadedDefaults.defaultImmediateEntry ? 'IMMEDIATE_MARKET' : 'WAIT_FOR_ENTRY');
+        setXStepPercent(String(loadedDefaults.defaultXStepPercent));
+        setXMaxLevels(String(loadedDefaults.defaultXRangeCount));
+      }
+      setIsInitializedFromStorage(true);
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [initialSymbol, initialPrice]);
 
   // Phase 4 & Phase 6: Auto-save manual inputs to local storage on changes

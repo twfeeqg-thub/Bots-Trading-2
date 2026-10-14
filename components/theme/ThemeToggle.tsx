@@ -1,81 +1,70 @@
 'use client';
 
 import React from 'react';
-import { useTheme } from './ThemeContext';
-import { Moon, Sun } from 'lucide-react';
+import { Palette, Paintbrush } from 'lucide-react';
+import { useTheme, ACCENT_PALETTES } from './ThemeContext';
+import { ThemeCustomizerModal } from './ThemeCustomizerModal';
 
 interface ThemeToggleProps {
   className?: string;
-  showLabel?: boolean;
 }
 
-export function ThemeToggle({ className = '', showLabel = true }: ThemeToggleProps) {
-  const { isLight, toggleTheme } = useTheme();
+export function ThemeToggle({ className = '' }: ThemeToggleProps) {
+  const { 
+    isCustomizerOpen, 
+    setIsCustomizerOpen, 
+    accent, 
+    isLight, 
+    theme 
+  } = useTheme();
+
+  const currentPalette = ACCENT_PALETTES[accent] || ACCENT_PALETTES.gold;
 
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <>
       <button
         type="button"
-        role="switch"
+        id="theme-customizer-btn"
         suppressHydrationWarning
-        aria-checked={isLight}
-        aria-label="التبديل بين الوضع المظلم والوضع الفاتح"
-        onClick={toggleTheme}
-        title={isLight ? 'التبديل إلى الوضع المظلم' : 'التبديل إلى الوضع الفاتح'}
-        className={`group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all duration-200 select-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-400/50 ${
+        aria-label="تخصيص ألوان الثيم ومظهر التطبيق"
+        title="تخصيص مظهر التطبيق وألوان الثيم"
+        onClick={() => setIsCustomizerOpen(true)}
+        className={`group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all duration-200 select-none cursor-pointer focus:outline-none focus:ring-2 shadow-xs hover:scale-[1.02] active:scale-[0.98] ${
           isLight
-            ? 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100 hover:border-amber-400 shadow-sm'
-            : 'bg-slate-950/80 border-slate-700/80 text-slate-300 hover:border-slate-500 hover:text-slate-100'
-        }`}
+            ? 'bg-white border-slate-300 text-slate-800 hover:border-slate-400 hover:bg-slate-50'
+            : 'bg-slate-900/90 border-slate-700 text-slate-200 hover:border-slate-500 hover:bg-slate-800'
+        } ${className}`}
+        style={{
+          boxShadow: `0 0 10px ${currentPalette.badgeBg}`,
+        }}
       >
-        {/* Toggle Switch Visual Track */}
+        {/* Swatch Icon with Palette/Paintbrush */}
         <div
-          className={`w-8 h-4.5 rounded-full transition-colors duration-200 p-0.5 flex items-center ${
-            isLight ? 'bg-amber-400 justify-end' : 'bg-slate-700 justify-start'
-          }`}
+          className="w-5 h-5 rounded-lg flex items-center justify-center text-slate-950 transition-colors shadow-xs"
+          style={{ backgroundColor: currentPalette.primaryColor }}
         >
-          {/* Thumb */}
-          <div
-            className={`w-3.5 h-3.5 rounded-full shadow-xs flex items-center justify-center transition-all ${
-              isLight ? 'bg-white text-amber-600' : 'bg-slate-200 text-slate-800'
-            }`}
-          >
-            {isLight ? (
-              <Sun className="w-2.5 h-2.5" />
-            ) : (
-              <Moon className="w-2.5 h-2.5" />
-            )}
-          </div>
+          <Paintbrush className="w-3 h-3 stroke-2.5" />
         </div>
 
-        {/* Labels & Icons */}
-        <div className="flex items-center gap-1.5">
-          {isLight ? (
-            <span className="flex items-center gap-1 text-amber-800 font-semibold tracking-wide">
-              <Sun className="w-3.5 h-3.5 text-amber-600" />
-              <span>الوضع الفاتح</span>
-            </span>
-          ) : (
-            <span className="flex items-center gap-1 text-slate-300">
-              <Moon className="w-3.5 h-3.5 text-slate-400" />
-              <span>الوضع المظلم</span>
-            </span>
-          )}
-        </div>
+        {/* Button Title */}
+        <span className="flex items-center gap-1">
+          <Palette className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200" />
+          <span className="font-semibold tracking-wide">🎨 ألوان الثيم</span>
+        </span>
 
-        {/* Small Mode Indicator Pill */}
-        {showLabel && (
-          <span
-            className={`hidden sm:inline-flex items-center text-[10px] px-1.5 py-0.2 rounded border transition-colors ${
-              isLight
-                ? 'bg-amber-200/50 border-amber-300 text-amber-800 font-medium'
-                : 'bg-slate-800/60 border-slate-700 text-slate-400'
-            }`}
-          >
-            {isLight ? 'فاتح' : 'مظلم'}
-          </span>
-        )}
+        {/* Small Active Color Dot / Emoji indicator */}
+        <span 
+          className="w-2.5 h-2.5 rounded-full inline-block ring-2 ring-slate-800 shadow-xs"
+          style={{ backgroundColor: currentPalette.primaryColor }}
+          title={currentPalette.nameAr}
+        />
       </button>
-    </div>
+
+      {/* Independent Theme Customizer Modal */}
+      <ThemeCustomizerModal
+        isOpen={isCustomizerOpen}
+        onClose={() => setIsCustomizerOpen(false)}
+      />
+    </>
   );
 }

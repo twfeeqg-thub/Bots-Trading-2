@@ -1,9 +1,62 @@
 @import "tailwindcss";
 
 :root {
+  /* Default: Binance Gold */
+  --theme-accent: #f0b90b;
+  --theme-accent-hover: #d97706;
+  --theme-accent-subtle: rgba(240, 185, 11, 0.15);
+  --theme-accent-border: rgba(240, 185, 11, 0.35);
+  --theme-accent-text: #f0b90b;
+  --theme-accent-contrast: #09090b;
+  --theme-accent-glow: 0 0 20px rgba(240, 185, 11, 0.25);
   color-scheme: dark;
 }
 
+/* Emerald Green Accent */
+[data-accent="emerald"] {
+  --theme-accent: #10b981;
+  --theme-accent-hover: #059669;
+  --theme-accent-subtle: rgba(16, 185, 129, 0.15);
+  --theme-accent-border: rgba(16, 185, 129, 0.35);
+  --theme-accent-text: #10b981;
+  --theme-accent-contrast: #ffffff;
+  --theme-accent-glow: 0 0 20px rgba(16, 185, 129, 0.25);
+}
+
+/* Cyber Cyan Accent */
+[data-accent="cyan"] {
+  --theme-accent: #06b6d4;
+  --theme-accent-hover: #0891b2;
+  --theme-accent-subtle: rgba(6, 182, 212, 0.15);
+  --theme-accent-border: rgba(6, 182, 212, 0.35);
+  --theme-accent-text: #06b6d4;
+  --theme-accent-contrast: #09090b;
+  --theme-accent-glow: 0 0 20px rgba(6, 182, 212, 0.25);
+}
+
+/* Crypto Violet Accent */
+[data-accent="violet"] {
+  --theme-accent: #8b5cf6;
+  --theme-accent-hover: #7c3aed;
+  --theme-accent-subtle: rgba(139, 92, 246, 0.15);
+  --theme-accent-border: rgba(139, 92, 246, 0.35);
+  --theme-accent-text: #8b5cf6;
+  --theme-accent-contrast: #ffffff;
+  --theme-accent-glow: 0 0 20px rgba(139, 92, 246, 0.25);
+}
+
+/* Binance Gold Accent */
+[data-accent="gold"] {
+  --theme-accent: #f0b90b;
+  --theme-accent-hover: #d97706;
+  --theme-accent-subtle: rgba(240, 185, 11, 0.15);
+  --theme-accent-border: rgba(240, 185, 11, 0.35);
+  --theme-accent-text: #f0b90b;
+  --theme-accent-contrast: #09090b;
+  --theme-accent-glow: 0 0 20px rgba(240, 185, 11, 0.25);
+}
+
+/* Light Mode Overrides */
 html.light {
   color-scheme: light;
 }
@@ -16,4 +69,86 @@ html.light body {
 html.dark body {
   background-color: #020617;
   color: #f8fafc;
+}
+
+html.light[data-accent="gold"],
+html.light [data-accent="gold"] {
+  --theme-accent: #d97706;
+  --theme-accent-hover: #b45309;
+  --theme-accent-subtle: #fef3c7;
+  --theme-accent-border: #fcd34d;
+  --theme-accent-text: #b45309;
+  --theme-accent-contrast: #ffffff;
+}
+
+html.light[data-accent="emerald"],
+html.light [data-accent="emerald"] {
+  --theme-accent: #059669;
+  --theme-accent-hover: #047857;
+  --theme-accent-subtle: #d1fae5;
+  --theme-accent-border: #6ee7b7;
+  --theme-accent-text: #047857;
+  --theme-accent-contrast: #ffffff;
+}
+
+html.light[data-accent="cyan"],
+html.light [data-accent="cyan"] {
+  --theme-accent: #0891b2;
+  --theme-accent-hover: #0e7490;
+  --theme-accent-subtle: #cffafe;
+  --theme-accent-border: #67e8f9;
+  --theme-accent-text: #0e7490;
+  --theme-accent-contrast: #ffffff;
+}
+
+html.light[data-accent="violet"],
+html.light [data-accent="violet"] {
+  --theme-accent: #7c3aed;
+  --theme-accent-hover: #6d28d9;
+  --theme-accent-subtle: #ede9fe;
+  --theme-accent-border: #c4b5fd;
+  --theme-accent-text: #6d28d9;
+  --theme-accent-contrast: #ffffff;
+}
+
+/* Dynamic theme helper classes */
+.theme-btn-primary {
+  background-color: var(--theme-accent) !important;
+  color: var(--theme-accent-contrast) !important;
+  transition: all 0.2s ease;
+}
+
+.theme-btn-primary:hover {
+  background-color: var(--theme-accent-hover) !important;
+}
+
+.theme-badge {
+  background-color: var(--theme-accent-subtle) !important;
+  border-color: var(--theme-accent-border) !important;
+  color: var(--theme-accent-text) !important;
+}
+
+.theme-accent-text {
+  color: var(--theme-accent-text) !important;
+}
+
+.theme-accent-border {
+  border-color: var(--theme-accent-border) !important;
+}
+
+.theme-tab-active {
+  background-color: var(--theme-accent-subtle) !important;
+  border-color: var(--theme-accent-border) !important;
+  color: var(--theme-accent-text) !important;
+  box-shadow: 0 0 12px var(--theme-accent-subtle);
+}
+
+.theme-tab-active-solid {
+  background-color: var(--theme-accent) !important;
+  color: var(--theme-accent-contrast) !important;
+  box-shadow: 0 2px 8px var(--theme-accent-subtle);
+}
+
+.theme-glow {
+  box-shadow: var(--theme-accent-glow);
 }
