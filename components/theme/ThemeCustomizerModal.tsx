@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { createPortal } from 'react-dom';
 import {
   Palette,
   X,
@@ -33,9 +34,10 @@ export function ThemeCustomizerModal({ isOpen, onClose }: ThemeCustomizerModalPr
     setAccentColor,
     isLight,
     theme,
+    mounted,
   } = useTheme();
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const modeOptions: {
     id: ThemeModePreference;
@@ -63,18 +65,19 @@ export function ThemeCustomizerModal({ isOpen, onClose }: ThemeCustomizerModalPr
     },
   ];
 
-  const palettesList: ('amber' | 'emerald' | 'cyan' | 'violet')[] = [
+  const palettesList: ('amber' | 'emerald' | 'cyan' | 'violet' | 'rose')[] = [
     'amber',
     'emerald',
     'cyan',
     'violet',
+    'rose',
   ];
 
   const currentPalette = ACCENT_PALETTES[accent] || ACCENT_PALETTES.amber;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-md overflow-hidden animate-in fade-in duration-200"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md overflow-hidden animate-in fade-in duration-200"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -83,7 +86,7 @@ export function ThemeCustomizerModal({ isOpen, onClose }: ThemeCustomizerModalPr
         role="dialog"
         aria-modal="true"
         aria-labelledby="theme-modal-title"
-        className={`theme-modal-dialog w-full max-w-xl max-h-[90dvh] sm:max-h-[85vh] flex flex-col rounded-2xl border shadow-2xl overflow-hidden transition-all duration-200 animate-in zoom-in-95 backdrop-blur-xl ${
+        className={`theme-modal-dialog w-full max-w-xl max-h-[90dvh] sm:max-h-[85vh] flex flex-col rounded-2xl border shadow-2xl overflow-hidden transition-all duration-200 animate-in zoom-in-95 backdrop-blur-xl relative my-auto mx-auto ${
           isLight
             ? 'bg-white/95 border-slate-200 text-slate-900 shadow-slate-300/50'
             : 'bg-slate-900/95 border-slate-800 text-slate-100 shadow-black/80'
@@ -96,7 +99,7 @@ export function ThemeCustomizerModal({ isOpen, onClose }: ThemeCustomizerModalPr
       >
         {/* Modal Header (Fixed / Shrink-0) */}
         <div
-          className="theme-modal-header shrink-0 flex items-center justify-between px-4 sm:px-6 py-3.5 border-b transition-colors"
+          className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-3.5 border-b transition-colors"
           style={{
             borderColor: isLight ? currentPalette.cardBorderLight : currentPalette.cardBorderDark,
             backgroundColor: isLight ? currentPalette.sectionBgLight : currentPalette.sectionBgDark,
@@ -115,7 +118,7 @@ export function ThemeCustomizerModal({ isOpen, onClose }: ThemeCustomizerModalPr
             <div>
               <h2
                 id="theme-modal-title"
-                className="theme-heading font-bold text-sm sm:text-lg tracking-tight"
+                className="font-bold text-sm sm:text-lg tracking-tight"
                 style={{
                   color: isLight ? currentPalette.headingColorLight : currentPalette.headingColorDark,
                 }}
@@ -364,6 +367,7 @@ export function ThemeCustomizerModal({ isOpen, onClose }: ThemeCustomizerModalPr
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

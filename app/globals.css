@@ -187,6 +187,39 @@ body {
   --theme-subtext: #ede9fe;
 }
 
+/* 1.5 Royal Rose / Feminine Pink (rose - Royal Rose) */
+:root[data-accent="rose"],
+[data-accent="rose"] {
+  --color-amber-50: #fff1f2;
+  --color-amber-100: #ffe4e6;
+  --color-amber-200: #fecdd3;
+  --color-amber-300: #fda4af;
+  --color-amber-400: #fb7185;
+  --color-amber-500: #f43f5e;
+  --color-amber-600: #e11d48;
+  --color-amber-700: #be123c;
+  --color-amber-800: #9f1239;
+  --color-amber-900: #881337;
+  --color-amber-950: #4c0519;
+
+  --theme-accent: #f43f5e;
+  --theme-accent-hover: #e11d48;
+  --theme-accent-subtle: rgba(244, 63, 94, 0.16);
+  --theme-accent-border: rgba(244, 63, 94, 0.35);
+  --theme-accent-text: #fb7185;
+  --theme-accent-contrast: #ffffff;
+  --theme-accent-glow: 0 0 26px rgba(244, 63, 94, 0.32);
+
+  --theme-section-bg: rgba(38, 12, 22, 0.88);
+  --theme-section-border: rgba(244, 63, 94, 0.26);
+  --theme-card-bg: rgba(48, 16, 28, 0.92);
+  --theme-card-border: rgba(244, 63, 94, 0.32);
+  --theme-modal-bg: rgba(28, 8, 16, 0.96);
+  --theme-modal-header: rgba(44, 14, 26, 0.95);
+  --theme-heading: #fecdd3;
+  --theme-subtext: #ffe4e6;
+}
+
 /* =========================================================================
    2. LIGHT MODE OVERRIDES
    ========================================================================= */
@@ -281,6 +314,25 @@ html.light [data-accent="violet"] {
   --theme-modal-header: rgba(237, 233, 254, 0.85);
   --theme-heading: #5b21b6;
   --theme-subtext: #4c1d95;
+}
+
+/* Light Mode 2.5: Royal Rose / Feminine Pink */
+html.light[data-accent="rose"],
+html.light [data-accent="rose"] {
+  --theme-accent: #e11d48;
+  --theme-accent-hover: #be123c;
+  --theme-accent-subtle: rgba(225, 29, 72, 0.12);
+  --theme-accent-border: rgba(225, 29, 72, 0.3);
+  --theme-accent-text: #be123c;
+  --theme-accent-contrast: #ffffff;
+  --theme-section-bg: rgba(255, 241, 242, 0.94);
+  --theme-section-border: rgba(225, 29, 72, 0.22);
+  --theme-card-bg: rgba(255, 255, 255, 0.98);
+  --theme-card-border: rgba(225, 29, 72, 0.26);
+  --theme-modal-bg: rgba(255, 255, 255, 0.99);
+  --theme-modal-header: rgba(255, 228, 230, 0.9);
+  --theme-heading: #9f1239;
+  --theme-subtext: #881337;
 }
 
 /* =========================================================================

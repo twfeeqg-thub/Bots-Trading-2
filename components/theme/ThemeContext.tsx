@@ -12,10 +12,10 @@ import React, {
 
 export type ThemeModePreference = 'system' | 'dark' | 'light';
 export type ThemeMode = 'dark' | 'light';
-export type AccentColor = 'amber' | 'emerald' | 'cyan' | 'violet' | 'gold';
+export type AccentColor = 'amber' | 'emerald' | 'cyan' | 'violet' | 'rose' | 'gold';
 
 export interface AccentColorDefinition {
-  id: 'amber' | 'emerald' | 'cyan' | 'violet';
+  id: 'amber' | 'emerald' | 'cyan' | 'violet' | 'rose';
   name: string;
   nameAr: string;
   emoji: string;
@@ -37,7 +37,7 @@ export interface AccentColorDefinition {
   headingColorLight: string;
 }
 
-export const ACCENT_PALETTES: Record<'amber' | 'emerald' | 'cyan' | 'violet' | 'gold', AccentColorDefinition> = {
+export const ACCENT_PALETTES: Record<'amber' | 'emerald' | 'cyan' | 'violet' | 'rose' | 'gold', AccentColorDefinition> = {
   amber: {
     id: 'amber',
     name: 'Binance Gold',
@@ -148,6 +148,28 @@ export const ACCENT_PALETTES: Record<'amber' | 'emerald' | 'cyan' | 'violet' | '
     cardBorderLight: 'rgba(124, 58, 237, 0.28)',
     headingColorLight: '#5b21b6',
   },
+  rose: {
+    id: 'rose',
+    name: 'Royal Rose',
+    nameAr: 'الوردي الملكي (Royal Rose)',
+    emoji: '👑',
+    primaryColor: '#f43f5e',
+    hoverColor: '#e11d48',
+    badgeBg: 'rgba(244, 63, 94, 0.15)',
+    badgeBorder: 'rgba(244, 63, 94, 0.4)',
+    previewRing: 'ring-rose-500/40',
+    description: 'طابع وردي أنثوي ملكي فاخر مع لمسات وتدرجات ناعمة ومريحة للعين وتوهج أنيق للمستخدمات',
+    sectionBgDark: 'rgba(38, 12, 22, 0.88)',
+    sectionBorderDark: 'rgba(244, 63, 94, 0.26)',
+    cardBgDark: 'rgba(48, 16, 28, 0.92)',
+    cardBorderDark: 'rgba(244, 63, 94, 0.32)',
+    headingColorDark: '#fecdd3',
+    sectionBgLight: 'rgba(255, 241, 242, 0.94)',
+    sectionBorderLight: 'rgba(225, 29, 72, 0.24)',
+    cardBgLight: 'rgba(255, 255, 255, 0.98)',
+    cardBorderLight: 'rgba(225, 29, 72, 0.28)',
+    headingColorLight: '#9f1239',
+  },
 };
 
 export interface ThemeContextType {
@@ -156,12 +178,12 @@ export interface ThemeContextType {
   theme: ThemeMode; // resolved 'dark' | 'light'
   isLight: boolean;
   isDark: boolean;
-  accent: 'amber' | 'emerald' | 'cyan' | 'violet';
-  accentColor: 'amber' | 'emerald' | 'cyan' | 'violet'; // alias
+  accent: 'amber' | 'emerald' | 'cyan' | 'violet' | 'rose';
+  accentColor: 'amber' | 'emerald' | 'cyan' | 'violet' | 'rose'; // alias
   setThemeMode: (mode: ThemeModePreference) => void;
   setModePreference: (pref: ThemeModePreference) => void; // alias
-  setAccentColor: (accent: 'amber' | 'emerald' | 'cyan' | 'violet') => void;
-  setAccent: (accent: 'amber' | 'emerald' | 'cyan' | 'violet' | 'gold') => void; // alias
+  setAccentColor: (accent: 'amber' | 'emerald' | 'cyan' | 'violet' | 'rose') => void;
+  setAccent: (accent: 'amber' | 'emerald' | 'cyan' | 'violet' | 'rose' | 'gold') => void; // alias
   cycleThemeMode: () => void;
   toggleTheme: () => void;
   setTheme: (theme: ThemeMode) => void;
@@ -187,12 +209,12 @@ function getStoredModePref(): ThemeModePreference {
   return 'dark';
 }
 
-function normalizeAccent(val: string | null): 'amber' | 'emerald' | 'cyan' | 'violet' {
-  if (val === 'emerald' || val === 'cyan' || val === 'violet') return val;
+function normalizeAccent(val: string | null): 'amber' | 'emerald' | 'cyan' | 'violet' | 'rose' {
+  if (val === 'emerald' || val === 'cyan' || val === 'violet' || val === 'rose') return val;
   return 'amber'; // 'gold', 'amber', or default
 }
 
-function getStoredAccent(): 'amber' | 'emerald' | 'cyan' | 'violet' {
+function getStoredAccent(): 'amber' | 'emerald' | 'cyan' | 'violet' | 'rose' {
   if (typeof window === 'undefined') return 'amber';
   try {
     const val = localStorage.getItem(STORAGE_ACCENT_KEY);
@@ -211,7 +233,7 @@ function resolveMode(pref: ThemeModePreference): ThemeMode {
   return pref;
 }
 
-function applyThemeToDocument(mode: ThemeMode, accent: 'amber' | 'emerald' | 'cyan' | 'violet') {
+function applyThemeToDocument(mode: ThemeMode, accent: 'amber' | 'emerald' | 'cyan' | 'violet' | 'rose') {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
 
@@ -318,7 +340,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   );
 
   const setAccentColor = useCallback(
-    (newAccent: 'amber' | 'emerald' | 'cyan' | 'violet' | 'gold') => {
+    (newAccent: 'amber' | 'emerald' | 'cyan' | 'violet' | 'rose' | 'gold') => {
       try {
         const normalized = normalizeAccent(newAccent);
         localStorage.setItem(STORAGE_ACCENT_KEY, normalized);
