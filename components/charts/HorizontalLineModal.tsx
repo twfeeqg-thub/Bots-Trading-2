@@ -112,25 +112,25 @@ function HorizontalLineForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl p-5 text-slate-100 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-150 overflow-hidden">
+      <div className="theme-modal-dialog w-full max-w-md max-h-[90dvh] flex flex-col rounded-2xl border shadow-2xl p-4 sm:p-5 text-slate-100 overflow-hidden">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="theme-modal-header shrink-0 flex items-center justify-between border-b pb-3 -mx-4 -mt-4 px-4 pt-4 sm:-mx-5 sm:-mt-5 sm:px-5 sm:pt-5 rounded-t-2xl">
           <div className="flex items-center gap-2">
             <Sliders className="w-4 h-4 text-emerald-400" />
-            <h3 className="text-sm font-semibold text-slate-100">تخصيص الخط الأفقي</h3>
+            <h3 className="theme-heading text-sm font-semibold">تخصيص الخط الأفقي</h3>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto min-h-0 space-y-4 text-xs pt-3 pr-0.5">
           {/* Label / Name */}
           <div>
             <label className="block text-[11px] font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
@@ -320,7 +320,7 @@ function HorizontalLineForm({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+          <div className="shrink-0 flex items-center justify-between pt-3 border-t border-slate-800">
             <button
               type="button"
               onClick={() => {

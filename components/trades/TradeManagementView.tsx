@@ -721,16 +721,16 @@ export function TradeManagementView({
   };
 
   return (
-    <div className="space-y-6 pb-16">
+    <div className="space-y-6 pb-16 max-w-full overflow-hidden">
       {/* 1. Global Header & Architecture Banner */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="theme-section border rounded-xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
             <TrendingUp className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-base font-bold text-slate-100">
+              <h2 className="theme-heading text-base font-bold">
                 مدير الصفقة (Trade Manager) — صفقات T و T0 والمسار العرضي X/Recovery
               </h2>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-medium">
@@ -2885,16 +2885,16 @@ export function TradeManagementView({
 
       {/* Phase 4: Modal for Editing & Customizing Local Default Trading Settings */}
       {isDefaultsModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 text-right">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-md overflow-hidden">
+          <div className="theme-modal-dialog border rounded-2xl w-full max-w-2xl max-h-[90dvh] flex flex-col overflow-hidden shadow-2xl p-4 sm:p-6 space-y-4 text-right">
+            <div className="theme-modal-header shrink-0 flex items-center justify-between border-b pb-3 -mx-4 -mt-4 px-4 pt-4 sm:-mx-6 sm:-mt-6 sm:px-6 sm:pt-6 rounded-t-2xl">
               <div className="flex items-center gap-2">
                 <SlidersHorizontal className="w-5 h-5 text-indigo-400" />
                 <div>
-                  <h3 className="font-bold text-base text-slate-100">
+                  <h3 className="theme-heading font-bold text-base">
                     تخصيص القيم الافتراضية للتداول (المرحلة 4)
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs opacity-75">
                     تُحفظ هذه الإعدادات محليًا وتستمر عند إغلاق التطبيق وإعادة فتحه
                   </p>
                 </div>
@@ -2902,13 +2902,13 @@ export function TradeManagementView({
               <button
                 type="button"
                 onClick={() => setIsDefaultsModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div className="flex-1 overflow-y-auto min-h-0 py-1 grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 text-xs pr-0.5">
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">زوج التداول الافتراضي:</label>
                 <input
@@ -3114,7 +3114,7 @@ export function TradeManagementView({
               </div>
             </div>
 
-            <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between border-t border-slate-800 pt-4 gap-3">
+            <div className="shrink-0 flex flex-col-reverse sm:flex-row sm:items-center justify-between border-t border-slate-800 pt-3 sm:pt-4 gap-3">
               <button
                 type="button"
                 onClick={handleResetToSystemDefaults}

@@ -190,7 +190,7 @@ export function ChartCard({
         onDragStart={(e) => onDragStartItem(e, index)}
         onDragOver={(e) => onDragOverItem(e, index)}
         onDrop={(e) => onDropItem(e, index)}
-        className={`w-full px-3 py-2.5 rounded-xl transition-all flex items-center justify-between gap-3 text-xs ${
+        className={`w-full px-3 py-2.5 rounded-xl transition-all flex items-center justify-between gap-3 text-xs theme-card ${
           isLight
             ? 'border border-slate-200 bg-white text-slate-800 shadow-sm hover:border-slate-300'
             : 'border border-slate-800 bg-slate-900/90 text-slate-100 shadow-sm hover:border-slate-700'
@@ -294,7 +294,7 @@ export function ChartCard({
       onDragStart={(e) => onDragStartItem(e, index)}
       onDragOver={(e) => onDragOverItem(e, index)}
       onDrop={(e) => onDropItem(e, index)}
-      className={`w-full rounded-2xl shadow-xl overflow-hidden transition-all flex flex-col space-y-2 p-3 sm:p-4 ${
+      className={`w-full max-w-full rounded-2xl shadow-xl overflow-hidden transition-all flex flex-col space-y-2 p-3 sm:p-4 theme-card ${
         isLight
           ? 'border border-slate-200 bg-white text-slate-800 shadow-md'
           : 'border border-slate-800 bg-slate-900 text-slate-100'

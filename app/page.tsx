@@ -50,36 +50,44 @@ export default function HomePage() {
     <div
       id="project-q-root"
       suppressHydrationWarning
-      className="flex flex-col min-h-screen transition-colors duration-200 bg-transparent text-slate-900 dark:text-slate-100"
+      className="flex flex-col min-h-screen transition-colors duration-200 bg-transparent text-slate-900 dark:text-slate-100 max-w-full overflow-x-hidden"
     >
       {/* Top Header */}
       <header
         id="main-header"
         suppressHydrationWarning
-        className="sticky top-0 z-40 border-b backdrop-blur-md px-3 sm:px-6 py-2.5 sm:py-3 transition-colors duration-200 border-slate-200/80 bg-white/80 dark:border-slate-800/80 dark:bg-slate-900/80 text-slate-900 dark:text-slate-100 shadow-xs"
+        className="theme-section sticky top-0 z-40 border-b backdrop-blur-md px-2 sm:px-6 py-2 sm:py-3 transition-colors duration-200 max-w-full shadow-xs"
+        style={{
+          backgroundColor: isLight ? currentPalette.sectionBgLight : currentPalette.sectionBgDark,
+          borderColor: isLight ? currentPalette.sectionBorderLight : currentPalette.sectionBorderDark,
+        }}
       >
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-1.5 sm:gap-2">
           {/* Brand & Identity */}
-          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <div 
-              className="w-9 h-9 rounded-xl border flex items-center justify-center transition-all duration-300 shadow-xs"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border flex items-center justify-center transition-all duration-300 shadow-xs shrink-0"
               style={{
                 backgroundColor: currentPalette.badgeBg,
                 borderColor: currentPalette.badgeBorder,
                 color: currentPalette.primaryColor,
               }}
             >
-              <Radar className="w-5 h-5 animate-pulse" />
+              <Radar className="w-4 h-4 sm:w-5 sm:h-5 animate-pulse" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <h1 className={`font-bold text-sm sm:text-lg tracking-tight ${
-                  isLight ? 'text-slate-900' : 'text-slate-100'
-                }`}>
-                  بوت(٢) مراقبة صعود العملات
+                <h1
+                  className="theme-heading font-bold text-xs sm:text-base md:text-lg tracking-tight truncate"
+                  style={{
+                    color: isLight ? currentPalette.headingColorLight : currentPalette.headingColorDark,
+                  }}
+                >
+                  <span className="sm:hidden">بوت(٢) الصعود</span>
+                  <span className="hidden sm:inline">بوت(٢) مراقبة صعود العملات</span>
                 </h1>
                 <span 
-                  className="text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-semibold border transition-all duration-200"
+                  className="text-[9px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-semibold border transition-all duration-200 shrink-0"
                   style={{
                     backgroundColor: currentPalette.badgeBg,
                     borderColor: currentPalette.badgeBorder,
@@ -231,16 +239,28 @@ export default function HomePage() {
       </header>
 
       {/* Main Content Area */}
-      <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 space-y-6 pb-24 md:pb-8">
+      <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto p-2.5 sm:p-6 space-y-5 sm:space-y-6 pb-24 md:pb-8 overflow-x-hidden min-w-0">
         {/* Collapsible Architecture Pipeline Banner */}
-        <section id="project-flow-banner" className="rounded-2xl border p-4 shadow-md backdrop-blur-md transition-colors border-slate-200/80 bg-white/80 dark:border-slate-800/90 dark:bg-slate-900/80">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+        <section
+          id="project-flow-banner"
+          className="theme-section rounded-2xl border p-3.5 sm:p-4 shadow-md backdrop-blur-md transition-colors"
+          style={{
+            backgroundColor: isLight ? currentPalette.sectionBgLight : currentPalette.sectionBgDark,
+            borderColor: isLight ? currentPalette.sectionBorderLight : currentPalette.sectionBorderDark,
+          }}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <Activity 
-                className="w-4 h-4 transition-colors" 
+                className="w-4 h-4 transition-colors shrink-0" 
                 style={{ color: currentPalette.primaryColor }} 
               />
-              <span className={`text-xs font-semibold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
+              <span
+                className="theme-heading text-xs font-semibold truncate"
+                style={{
+                  color: isLight ? currentPalette.headingColorLight : currentPalette.headingColorDark,
+                }}
+              >
                 مشروع Q — التدفق العام: Market Data → Scanner → Alert → Execution → Real P/L
               </span>
             </div>
@@ -388,7 +408,7 @@ export default function HomePage() {
       </main>
 
       {/* Fixed Bottom Navigation (Mobile-First compliant as specified in Section 9) */}
-      <nav id="bottom-navigation" className={`fixed bottom-0 left-0 right-0 z-50 backdrop-blur-md border-t px-2 py-1.5 md:hidden transition-colors ${
+      <nav id="bottom-navigation" className={`theme-section fixed bottom-0 left-0 right-0 z-50 backdrop-blur-md border-t px-2 py-1.5 md:hidden transition-colors ${
         isLight ? 'bg-white/95 border-slate-200' : 'bg-slate-900/95 border-slate-800'
       }`}>
         <div className="grid grid-cols-5 gap-0.5">

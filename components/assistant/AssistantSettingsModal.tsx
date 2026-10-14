@@ -166,16 +166,16 @@ export function AssistantSettingsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200 overflow-hidden">
       <div
-        className={`w-full max-w-lg rounded-2xl border shadow-2xl overflow-hidden flex flex-col max-h-[92vh] ${
+        className={`theme-modal-dialog w-full max-w-lg rounded-2xl border shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] ${
           isLight
             ? 'bg-white border-slate-200 text-slate-900'
             : 'bg-slate-900 border-slate-800 text-slate-100'
         }`}
       >
         {/* Header */}
-        <div className={`p-4 border-b flex items-center justify-between ${
+        <div className={`theme-modal-header shrink-0 p-3.5 sm:p-4 border-b flex items-center justify-between ${
           isLight ? 'border-slate-200 bg-slate-50' : 'border-slate-800 bg-slate-950/60'
         }`}>
           <div className="flex items-center gap-2.5">
@@ -185,7 +185,7 @@ export function AssistantSettingsModal({
               <Cpu className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold">إعدادات المساعد الذكي والمزودين</h3>
+              <h3 className="theme-heading text-sm font-bold">إعدادات المساعد الذكي والمزودين</h3>
               <p className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                 اختر المزود، حدّث النماذج المتاحة حياً، أو أدخل نموذجًا مخصصًا
               </p>
@@ -203,7 +203,7 @@ export function AssistantSettingsModal({
         </div>
 
         {/* Body Content */}
-        <div className="p-5 overflow-y-auto space-y-5 text-xs">
+        <div className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-5 space-y-4 sm:space-y-5 text-xs">
           {/* In-Memory Security Guarantee Callout */}
           <div className={`p-3 rounded-xl border flex items-start gap-2.5 ${
             isLight
@@ -432,7 +432,7 @@ export function AssistantSettingsModal({
         </div>
 
         {/* Footer */}
-        <div className={`p-4 border-t flex items-center justify-end gap-2 ${
+        <div className={`shrink-0 p-3.5 sm:p-4 border-t flex items-center justify-end gap-2 ${
           isLight ? 'border-slate-200 bg-slate-50' : 'border-slate-800 bg-slate-950/60'
         }`}>
           <button

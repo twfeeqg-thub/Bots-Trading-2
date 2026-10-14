@@ -112,9 +112,9 @@ export function GlobalMarketsView({
   }, [utc3.totalMinutesOfDay]);
 
   return (
-    <div id="global-markets-container" className="space-y-6 pb-12 animate-in fade-in duration-200">
+    <div id="global-markets-container" className="space-y-6 pb-12 animate-in fade-in duration-200 max-w-full overflow-hidden">
       {/* Top Banner / Header Bar */}
-      <div className={`rounded-2xl p-4 sm:p-6 border shadow-sm transition-all ${
+      <div className={`rounded-2xl p-4 sm:p-6 border shadow-sm transition-all theme-section ${
         isLight 
           ? 'bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 border-emerald-200 text-slate-800' 
           : 'bg-gradient-to-r from-slate-900 via-slate-900/90 to-emerald-950/40 border-slate-800 text-slate-100'
@@ -127,7 +127,7 @@ export function GlobalMarketsView({
               }`}>
                 <Globe className="w-5 h-5 animate-spin-slow" />
               </div>
-              <h2 className={`text-lg sm:text-xl font-bold tracking-tight ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
+              <h2 className="theme-heading text-lg sm:text-xl font-bold tracking-tight">
                 الأسواق والسيولة العالمية (Global Markets &amp; Sessions)
               </h2>
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
@@ -219,14 +219,14 @@ export function GlobalMarketsView({
       {/* ------------------------------------------------------------- */}
       {/* MODULE 1: 24h Visual Timeline & Clocks */}
       {/* ------------------------------------------------------------- */}
-      <section className={`rounded-2xl p-4 sm:p-6 border shadow-sm space-y-5 transition-colors ${
+      <section className={`theme-section rounded-2xl p-4 sm:p-6 border shadow-sm space-y-5 transition-colors ${
         isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'
       }`}>
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-3 border-slate-800/40">
           <div className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-emerald-500" />
             <div>
-              <h3 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
+              <h3 className="theme-heading text-base font-bold">
                 شريط التقدم الزمني للـ 24 ساعة (Session Timeline)
               </h3>
               <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>

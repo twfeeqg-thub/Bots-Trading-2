@@ -137,16 +137,16 @@ export function AnalyticsView() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-full overflow-hidden">
       {/* Top Banner & Header Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+      <div className="theme-section flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border">
         <div>
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
               <BarChart3 className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-slate-100">
+              <h2 className="theme-heading text-base sm:text-lg font-bold">
                 مكوّن PnL &amp; Analytics المتقدم
               </h2>
               <p className="text-xs text-slate-400">

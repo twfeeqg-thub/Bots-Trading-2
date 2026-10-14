@@ -40,7 +40,7 @@ export function PWAInstallButton({ className = '', variant = 'compact' }: PWAIns
         onClick={handleInstallClick}
         aria-label="تثبيت التطبيق على جهازك (PWA)"
         title="تثبيت التطبيق على الشاشة الرئيسية (PWA)"
-        className={`group relative inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all duration-200 cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-amber-400/50 ${
+        className={`group relative inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl border text-xs font-medium transition-all duration-200 cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-amber-400/50 shrink-0 ${
           isLight
             ? 'bg-amber-500/10 border-amber-500/30 text-amber-900 hover:bg-amber-500/20'
             : 'bg-amber-500/10 border-amber-500/40 text-amber-400 hover:bg-amber-500/20'
@@ -48,14 +48,18 @@ export function PWAInstallButton({ className = '', variant = 'compact' }: PWAIns
       >
         {justInstalled ? (
           <>
-            <Check className="w-3.5 h-3.5 text-emerald-500 animate-bounce" />
-            <span className="font-semibold text-emerald-600 dark:text-emerald-400">تم التثبيت!</span>
+            <Check className="w-3.5 h-3.5 text-emerald-500 animate-bounce shrink-0" />
+            <span className="font-semibold text-emerald-600 dark:text-emerald-400 hidden sm:inline">تم التثبيت!</span>
+            <span className="font-semibold text-emerald-600 dark:text-emerald-400 sm:hidden text-[11px]">مثبّت</span>
           </>
         ) : (
           <>
-            <Download className="w-3.5 h-3.5 group-hover:-translate-y-0.5 transition-transform" />
-            <span className="font-medium">
+            <Download className="w-3.5 h-3.5 group-hover:-translate-y-0.5 transition-transform shrink-0" />
+            <span className="font-medium hidden sm:inline">
               {variant === 'full' ? 'تثبيت التطبيق (PWA)' : 'تثبيت PWA'}
+            </span>
+            <span className="font-medium sm:hidden text-[11px]">
+              تثبيت
             </span>
           </>
         )}
@@ -63,14 +67,14 @@ export function PWAInstallButton({ className = '', variant = 'compact' }: PWAIns
 
       {/* iOS Safari Instruction Modal */}
       {showIOSModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className={`w-full max-w-sm rounded-2xl border p-5 shadow-2xl relative ${
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200 overflow-hidden">
+          <div className={`theme-modal-dialog w-full max-w-sm max-h-[90dvh] flex flex-col overflow-y-auto rounded-2xl border p-4 sm:p-5 shadow-2xl relative ${
             isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-slate-100'
           }`}>
             <button
               type="button"
               onClick={() => setShowIOSModal(false)}
-              className="absolute top-4 left-4 p-1 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
+              className="absolute top-4 left-4 p-1 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -80,8 +84,8 @@ export function PWAInstallButton({ className = '', variant = 'compact' }: PWAIns
                 <Smartphone className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-sm">تثبيت التطبيق على iPhone / iPad</h3>
-                <p className="text-xs text-slate-400">يعمل كـ تطبيق أصلي دون شريط المتصفح</p>
+                <h3 className="theme-heading font-bold text-sm">تثبيت التطبيق على iPhone / iPad</h3>
+                <p className="text-xs opacity-75">يعمل كـ تطبيق أصلي دون شريط المتصفح</p>
               </div>
             </div>
 

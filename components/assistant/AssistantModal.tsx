@@ -575,22 +575,22 @@ export function AssistantModal({
 
       {/* Main Assistant Panel / Drawer */}
       <div
-        className={`fixed z-50 transition-all duration-300 flex flex-col shadow-2xl border ${
+        className={`theme-modal-dialog fixed z-50 transition-all duration-300 flex flex-col shadow-2xl border ${
           isLight
             ? 'bg-white border-slate-200 text-slate-900'
             : 'bg-slate-900 border-slate-800 text-slate-100'
         } ${
           // Mobile: Bottom sheet
-          'bottom-0 left-0 right-0 rounded-t-2xl max-h-[92vh] md:rounded-2xl md:bottom-6 md:right-6 md:left-auto '
+          'bottom-0 left-0 right-0 rounded-t-2xl max-h-[90dvh] md:rounded-2xl md:bottom-6 md:right-6 md:left-auto overflow-hidden '
         } ${
           // Desktop sizing: normal vs expanded
           isExpanded
-            ? 'md:w-[720px] md:h-[85vh] h-[92vh]'
-            : 'md:w-[440px] md:h-[700px] h-[82vh]'
+            ? 'md:w-[720px] md:h-[85vh] h-[90dvh]'
+            : 'md:w-[440px] md:h-[700px] h-[82dvh]'
         }`}
       >
         {/* Header Bar */}
-        <div className={`p-3.5 border-b flex items-center justify-between shrink-0 select-none ${
+        <div className={`theme-modal-header p-3.5 border-b flex items-center justify-between shrink-0 select-none ${
           isLight ? 'border-slate-200 bg-slate-50/90' : 'border-slate-800 bg-slate-950/80'
         }`}>
           <div className="flex items-center gap-2.5">
@@ -601,7 +601,7 @@ export function AssistantModal({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold tracking-tight">المساعد الذكي للتحليل</h2>
+                <h2 className="theme-heading text-sm font-bold tracking-tight">المساعد الذكي للتحليل</h2>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-medium border border-emerald-500/30">
                   مستقل
                 </span>
@@ -675,13 +675,13 @@ export function AssistantModal({
           isLight ? 'bg-slate-100/70 border-slate-200' : 'bg-slate-950/40 border-slate-800/80'
         }`}>
           {/* Symbol & Timeframe Selector */}
-          <div className="flex items-center gap-1.5 flex-1 min-w-[240px]">
+          <div className="flex items-center gap-1.5 flex-1 min-w-0 flex-wrap sm:flex-nowrap">
             <input
               type="text"
               value={selectedSymbol}
               onChange={(e) => setSelectedSymbol(e.target.value.toUpperCase())}
               placeholder="الرمز مثلا BTCUSDT"
-              className={`w-28 px-2 py-1 rounded-lg border font-mono text-xs uppercase focus:outline-hidden ${
+              className={`w-24 sm:w-28 px-2 py-1 rounded-lg border font-mono text-xs uppercase focus:outline-hidden ${
                 isLight ? 'bg-white border-slate-300' : 'bg-slate-900 border-slate-700'
               }`}
             />

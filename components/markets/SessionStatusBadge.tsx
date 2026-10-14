@@ -142,16 +142,17 @@ export function SessionStatusBadge({ onClick, className = '' }: SessionStatusBad
       onClick={onClick}
       suppressHydrationWarning
       title="انقر للانتقال لشاشة الأسواق وجلسات السيولة العالمية"
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all duration-200 cursor-pointer shadow-2xs select-none ${badgeInfo.badgeClass} ${className}`}
+      className={`inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1 rounded-lg border text-xs font-medium transition-all duration-200 cursor-pointer shadow-2xs select-none shrink-0 ${badgeInfo.badgeClass} ${className}`}
     >
       {badgeInfo.isPeak ? (
-        <Flame className="w-3.5 h-3.5 text-amber-500 animate-bounce" />
+        <Flame className="w-3.5 h-3.5 text-amber-500 animate-bounce shrink-0" />
       ) : (
-        <Globe className="w-3.5 h-3.5 opacity-80" />
+        <Globe className="w-3.5 h-3.5 opacity-80 shrink-0" />
       )}
-      <span className={`w-1.5 h-1.5 rounded-full ${badgeInfo.dotColor} animate-pulse`} />
-      <span className="hidden sm:inline font-semibold">{badgeInfo.label}</span>
-      <span className="sm:hidden font-semibold">{badgeInfo.shortLabel}</span>
+      <span className={`w-1.5 h-1.5 rounded-full ${badgeInfo.dotColor} animate-pulse shrink-0`} />
+      <span className="hidden md:inline font-semibold">{badgeInfo.label}</span>
+      <span className="hidden sm:inline md:hidden font-semibold">{badgeInfo.shortLabel}</span>
+      <span className="sm:hidden font-semibold text-[10px]">الأسواق</span>
     </button>
   );
 }

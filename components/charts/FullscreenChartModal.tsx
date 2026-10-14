@@ -62,13 +62,13 @@ export function FullscreenChartModal({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex flex-col animate-in fade-in duration-150 overflow-hidden ${
+      className={`fixed inset-0 z-50 flex flex-col animate-in fade-in duration-150 overflow-hidden max-w-full ${
         isLight ? 'bg-slate-100 text-slate-900' : 'bg-slate-950 text-slate-100'
       }`}
     >
       {/* Fullscreen Header */}
       <div
-        className={`px-4 py-2.5 border-b flex items-center justify-between z-30 shrink-0 ${
+        className={`theme-modal-header px-4 py-2.5 border-b flex items-center justify-between z-30 shrink-0 ${
           isLight ? 'bg-white border-slate-200 text-slate-900 shadow-xs' : 'bg-slate-900/90 border-slate-800 text-slate-100'
         }`}
       >

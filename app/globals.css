@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+/* =========================================================================
+   GLOBAL RESET & VIEWPORT INTEGRITY
+   Prevent unwanted horizontal scrollbars across all screen sizes
+   ========================================================================= */
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 :root {
   /* Default amber (Binance Gold) 50-950 scale */
   --color-amber-50: #fffbeb;
@@ -17,19 +30,27 @@
   /* Global Theme Accent Variables */
   --theme-accent: #f0b90b;
   --theme-accent-hover: #d97706;
-  --theme-accent-subtle: rgba(240, 185, 11, 0.15);
-  --theme-accent-border: rgba(240, 185, 11, 0.35);
+  --theme-accent-subtle: rgba(240, 185, 11, 0.14);
+  --theme-accent-border: rgba(240, 185, 11, 0.3);
   --theme-accent-text: #f0b90b;
   --theme-accent-contrast: #09090b;
-  --theme-accent-glow: 0 0 24px rgba(240, 185, 11, 0.3);
+  --theme-accent-glow: 0 0 24px rgba(240, 185, 11, 0.28);
+
+  /* Deep Theme Penetration: Sections, Cards, Modals & Headings */
+  --theme-section-bg: rgba(24, 20, 13, 0.88);
+  --theme-section-border: rgba(240, 185, 11, 0.24);
+  --theme-card-bg: rgba(30, 24, 15, 0.92);
+  --theme-card-border: rgba(240, 185, 11, 0.28);
+  --theme-modal-bg: rgba(20, 16, 10, 0.96);
+  --theme-modal-header: rgba(32, 25, 14, 0.95);
+  --theme-heading: #fcd34d;
+  --theme-subtext: #fef3c7;
 
   color-scheme: dark;
 }
 
 /* =========================================================================
-   1. ACCENT OVERRIDES: CSS Variables Palette Overrides
-   Dynamically remaps --color-amber-50 through --color-amber-950
-   so any Tailwind amber-* class across the whole application instantly transforms!
+   1. ACCENT OVERRIDES: Comprehensive 4-Theme Matrix (Dark Mode Defaults)
    ========================================================================= */
 
 /* 1.1 Classic Gold (amber / gold - Binance Gold) */
@@ -51,11 +72,20 @@
 
   --theme-accent: #f0b90b;
   --theme-accent-hover: #d97706;
-  --theme-accent-subtle: rgba(240, 185, 11, 0.15);
-  --theme-accent-border: rgba(240, 185, 11, 0.35);
+  --theme-accent-subtle: rgba(240, 185, 11, 0.14);
+  --theme-accent-border: rgba(240, 185, 11, 0.3);
   --theme-accent-text: #f0b90b;
   --theme-accent-contrast: #09090b;
-  --theme-accent-glow: 0 0 24px rgba(240, 185, 11, 0.3);
+  --theme-accent-glow: 0 0 24px rgba(240, 185, 11, 0.28);
+
+  --theme-section-bg: rgba(24, 20, 13, 0.88);
+  --theme-section-border: rgba(240, 185, 11, 0.24);
+  --theme-card-bg: rgba(30, 24, 15, 0.92);
+  --theme-card-border: rgba(240, 185, 11, 0.28);
+  --theme-modal-bg: rgba(20, 16, 10, 0.96);
+  --theme-modal-header: rgba(32, 25, 14, 0.95);
+  --theme-heading: #fcd34d;
+  --theme-subtext: #fef3c7;
 }
 
 /* 1.2 Emerald Green (emerald - Bullish Gain) */
@@ -75,11 +105,20 @@
 
   --theme-accent: #10b981;
   --theme-accent-hover: #059669;
-  --theme-accent-subtle: rgba(16, 185, 129, 0.15);
-  --theme-accent-border: rgba(16, 185, 129, 0.35);
+  --theme-accent-subtle: rgba(16, 185, 129, 0.14);
+  --theme-accent-border: rgba(16, 185, 129, 0.3);
   --theme-accent-text: #10b981;
   --theme-accent-contrast: #ffffff;
-  --theme-accent-glow: 0 0 24px rgba(16, 185, 129, 0.3);
+  --theme-accent-glow: 0 0 24px rgba(16, 185, 129, 0.28);
+
+  --theme-section-bg: rgba(6, 26, 20, 0.88);
+  --theme-section-border: rgba(16, 185, 129, 0.24);
+  --theme-card-bg: rgba(8, 34, 26, 0.92);
+  --theme-card-border: rgba(16, 185, 129, 0.28);
+  --theme-modal-bg: rgba(4, 20, 15, 0.96);
+  --theme-modal-header: rgba(8, 30, 22, 0.95);
+  --theme-heading: #6ee7b7;
+  --theme-subtext: #d1fae5;
 }
 
 /* 1.3 Cyber Cyan (cyan - Cyber Cyan) */
@@ -99,11 +138,20 @@
 
   --theme-accent: #06b6d4;
   --theme-accent-hover: #0891b2;
-  --theme-accent-subtle: rgba(6, 182, 212, 0.15);
-  --theme-accent-border: rgba(6, 182, 212, 0.35);
+  --theme-accent-subtle: rgba(6, 182, 212, 0.14);
+  --theme-accent-border: rgba(6, 182, 212, 0.3);
   --theme-accent-text: #06b6d4;
   --theme-accent-contrast: #09090b;
-  --theme-accent-glow: 0 0 24px rgba(6, 182, 212, 0.3);
+  --theme-accent-glow: 0 0 24px rgba(6, 182, 212, 0.28);
+
+  --theme-section-bg: rgba(6, 26, 36, 0.88);
+  --theme-section-border: rgba(6, 182, 212, 0.24);
+  --theme-card-bg: rgba(8, 34, 46, 0.92);
+  --theme-card-border: rgba(6, 182, 212, 0.28);
+  --theme-modal-bg: rgba(4, 20, 30, 0.96);
+  --theme-modal-header: rgba(8, 32, 44, 0.95);
+  --theme-heading: #67e8f9;
+  --theme-subtext: #cffafe;
 }
 
 /* 1.4 Web3 Violet (violet - Web3 Crypto) */
@@ -123,15 +171,24 @@
 
   --theme-accent: #8b5cf6;
   --theme-accent-hover: #7c3aed;
-  --theme-accent-subtle: rgba(139, 92, 246, 0.15);
-  --theme-accent-border: rgba(139, 92, 246, 0.35);
+  --theme-accent-subtle: rgba(139, 92, 246, 0.14);
+  --theme-accent-border: rgba(139, 92, 246, 0.3);
   --theme-accent-text: #8b5cf6;
   --theme-accent-contrast: #ffffff;
-  --theme-accent-glow: 0 0 24px rgba(139, 92, 246, 0.3);
+  --theme-accent-glow: 0 0 24px rgba(139, 92, 246, 0.28);
+
+  --theme-section-bg: rgba(24, 14, 40, 0.88);
+  --theme-section-border: rgba(139, 92, 246, 0.24);
+  --theme-card-bg: rgba(30, 18, 50, 0.92);
+  --theme-card-border: rgba(139, 92, 246, 0.28);
+  --theme-modal-bg: rgba(18, 10, 32, 0.96);
+  --theme-modal-header: rgba(28, 16, 48, 0.95);
+  --theme-heading: #c4b5fd;
+  --theme-subtext: #ede9fe;
 }
 
 /* =========================================================================
-   2. LIGHT & DARK MODE OVERRIDES
+   2. LIGHT MODE OVERRIDES
    ========================================================================= */
 
 html.light {
@@ -148,7 +205,7 @@ html.dark body {
   color: #f8fafc;
 }
 
-/* Light Mode Accent adjustments for optimal text contrast */
+/* Light Mode 2.1: Amber (Gold) */
 html.light[data-accent="amber"],
 html.light[data-accent="gold"],
 html.light [data-accent="amber"],
@@ -156,82 +213,132 @@ html.light [data-accent="gold"] {
   --theme-accent: #d97706;
   --theme-accent-hover: #b45309;
   --theme-accent-subtle: rgba(217, 119, 6, 0.12);
-  --theme-accent-border: rgba(217, 119, 6, 0.35);
+  --theme-accent-border: rgba(217, 119, 6, 0.3);
   --theme-accent-text: #b45309;
   --theme-accent-contrast: #ffffff;
+  --theme-section-bg: rgba(255, 251, 235, 0.92);
+  --theme-section-border: rgba(217, 119, 6, 0.22);
+  --theme-card-bg: rgba(255, 255, 255, 0.96);
+  --theme-card-border: rgba(217, 119, 6, 0.25);
+  --theme-modal-bg: rgba(255, 255, 255, 0.98);
+  --theme-modal-header: rgba(254, 243, 199, 0.85);
+  --theme-heading: #92400e;
+  --theme-subtext: #78350f;
 }
 
+/* Light Mode 2.2: Emerald */
 html.light[data-accent="emerald"],
 html.light [data-accent="emerald"] {
   --theme-accent: #059669;
   --theme-accent-hover: #047857;
   --theme-accent-subtle: rgba(5, 150, 105, 0.12);
-  --theme-accent-border: rgba(5, 150, 105, 0.35);
+  --theme-accent-border: rgba(5, 150, 105, 0.3);
   --theme-accent-text: #047857;
   --theme-accent-contrast: #ffffff;
+  --theme-section-bg: rgba(236, 253, 245, 0.92);
+  --theme-section-border: rgba(5, 150, 105, 0.22);
+  --theme-card-bg: rgba(255, 255, 255, 0.96);
+  --theme-card-border: rgba(5, 150, 105, 0.25);
+  --theme-modal-bg: rgba(255, 255, 255, 0.98);
+  --theme-modal-header: rgba(209, 250, 229, 0.85);
+  --theme-heading: #065f46;
+  --theme-subtext: #064e3b;
 }
 
+/* Light Mode 2.3: Cyan */
 html.light[data-accent="cyan"],
 html.light [data-accent="cyan"] {
   --theme-accent: #0891b2;
   --theme-accent-hover: #0e7490;
   --theme-accent-subtle: rgba(8, 145, 178, 0.12);
-  --theme-accent-border: rgba(8, 145, 178, 0.35);
+  --theme-accent-border: rgba(8, 145, 178, 0.3);
   --theme-accent-text: #0e7490;
   --theme-accent-contrast: #ffffff;
+  --theme-section-bg: rgba(236, 254, 255, 0.92);
+  --theme-section-border: rgba(8, 145, 178, 0.22);
+  --theme-card-bg: rgba(255, 255, 255, 0.96);
+  --theme-card-border: rgba(8, 145, 178, 0.25);
+  --theme-modal-bg: rgba(255, 255, 255, 0.98);
+  --theme-modal-header: rgba(207, 250, 229, 0.85);
+  --theme-heading: #155e75;
+  --theme-subtext: #164e63;
 }
 
+/* Light Mode 2.4: Violet */
 html.light[data-accent="violet"],
 html.light [data-accent="violet"] {
   --theme-accent: #7c3aed;
   --theme-accent-hover: #6d28d9;
   --theme-accent-subtle: rgba(124, 58, 237, 0.12);
-  --theme-accent-border: rgba(124, 58, 237, 0.35);
+  --theme-accent-border: rgba(124, 58, 237, 0.3);
   --theme-accent-text: #6d28d9;
   --theme-accent-contrast: #ffffff;
+  --theme-section-bg: rgba(245, 243, 255, 0.92);
+  --theme-section-border: rgba(124, 58, 237, 0.22);
+  --theme-card-bg: rgba(255, 255, 255, 0.96);
+  --theme-card-border: rgba(124, 58, 237, 0.25);
+  --theme-modal-bg: rgba(255, 255, 255, 0.98);
+  --theme-modal-header: rgba(237, 233, 254, 0.85);
+  --theme-heading: #5b21b6;
+  --theme-subtext: #4c1d95;
 }
 
 /* =========================================================================
-   3. SELECTION & GLASSMORPHISM
+   3. UNIFIED THEME-AWARE CLASSES (theme-section, theme-card, theme-modal-dialog)
    ========================================================================= */
 
 ::selection {
-  background-color: rgba(245, 158, 11, 0.3);
-  color: var(--color-amber-600);
+  background-color: var(--theme-accent-subtle);
+  color: var(--theme-accent);
 }
 
-html.dark ::selection {
-  background-color: rgba(245, 158, 11, 0.3);
-  color: var(--color-amber-200);
+/* 3.1 Unified Section Container */
+.theme-section {
+  background-color: var(--theme-section-bg) !important;
+  border-color: var(--theme-section-border) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
-html.light ::selection {
-  background-color: rgba(217, 119, 6, 0.25);
-  color: var(--color-amber-700);
+/* 3.2 Unified Card Container */
+.theme-card {
+  background-color: var(--theme-card-bg) !important;
+  border-color: var(--theme-card-border) !important;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
-/* Glassmorphism utility panel */
-.glass-panel {
-  background-color: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+/* 3.3 Unified Modal Dialog Container */
+.theme-modal-dialog {
+  background-color: var(--theme-modal-bg) !important;
+  border-color: var(--theme-section-border) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 35px var(--theme-accent-subtle) !important;
 }
 
-html.dark .glass-panel {
-  background-color: rgba(15, 23, 42, 0.8);
-  border-color: rgba(30, 41, 59, 0.9);
+.theme-modal-header {
+  background-color: var(--theme-modal-header) !important;
+  border-color: var(--theme-section-border) !important;
 }
 
-/* Helper dynamic classes */
+/* 3.4 Unified Headings and Labels */
+.theme-heading {
+  color: var(--theme-heading) !important;
+}
+
 .theme-btn-primary {
   background-color: var(--theme-accent) !important;
   color: var(--theme-accent-contrast) !important;
+  box-shadow: 0 4px 14px var(--theme-accent-subtle);
   transition: all 0.2s ease;
 }
 
 .theme-btn-primary:hover {
   background-color: var(--theme-accent-hover) !important;
+  transform: translateY(-1px);
+}
+
+.theme-btn-primary:active {
+  transform: translateY(0);
 }
 
 .theme-badge {
@@ -240,27 +347,35 @@ html.dark .glass-panel {
   color: var(--theme-accent-text) !important;
 }
 
-.theme-accent-text {
-  color: var(--theme-accent-text) !important;
-}
-
-.theme-accent-border {
-  border-color: var(--theme-accent-border) !important;
-}
-
 .theme-tab-active {
   background-color: var(--theme-accent-subtle) !important;
   border-color: var(--theme-accent-border) !important;
   color: var(--theme-accent-text) !important;
-  box-shadow: 0 0 12px var(--theme-accent-subtle);
+  box-shadow: 0 0 14px var(--theme-accent-subtle);
 }
 
 .theme-tab-active-solid {
   background-color: var(--theme-accent) !important;
   color: var(--theme-accent-contrast) !important;
-  box-shadow: 0 2px 8px var(--theme-accent-subtle);
+  box-shadow: 0 2px 10px var(--theme-accent-subtle);
 }
 
 .theme-glow {
   box-shadow: var(--theme-accent-glow);
+}
+
+/* Responsive table & container safety */
+.table-responsive-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 640px) {
+  .theme-mobile-modal {
+    max-height: 90dvh !important;
+    width: calc(100vw - 1rem) !important;
+    margin: 0.5rem auto !important;
+  }
 }

@@ -47,8 +47,20 @@ export function FloatingChartWindow({
   price,
   changePct,
 }: FloatingChartWindowProps) {
-  const [position, setPosition] = useState<{ x: number; y: number }>({ x: 40, y: 80 });
-  const [size, setSize] = useState<{ width: number; height: number }>({ width: 560, height: 420 });
+  const [position, setPosition] = useState<{ x: number; y: number }>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 640) {
+      return { x: 8, y: 65 };
+    }
+    return { x: 16, y: 75 };
+  });
+
+  const [size, setSize] = useState<{ width: number; height: number }>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 640) {
+      return { width: Math.max(280, window.innerWidth - 16), height: 360 };
+    }
+    return { width: 560, height: 420 };
+  });
+
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const { isLight } = useTheme();
   const dragStartRef = useRef<{ startX: number; startY: number; initialX: number; initialY: number }>({
@@ -78,9 +90,11 @@ export function FloatingChartWindow({
     if (!isDragging) return;
     const deltaX = e.clientX - dragStartRef.current.startX;
     const deltaY = e.clientY - dragStartRef.current.startY;
+    const maxLeft = Math.max(8, window.innerWidth - size.width - 8);
+    const maxTop = Math.max(8, window.innerHeight - 150);
     setPosition({
-      x: Math.max(10, Math.min(window.innerWidth - 300, dragStartRef.current.initialX + deltaX)),
-      y: Math.max(10, Math.min(window.innerHeight - 200, dragStartRef.current.initialY + deltaY)),
+      x: Math.max(8, Math.min(maxLeft, dragStartRef.current.initialX + deltaX)),
+      y: Math.max(8, Math.min(maxTop, dragStartRef.current.initialY + deltaY)),
     });
   };
 
@@ -98,9 +112,11 @@ export function FloatingChartWindow({
         left: `${position.x}px`,
         top: `${position.y}px`,
         width: `${size.width}px`,
+        maxWidth: 'calc(100vw - 16px)',
+        maxHeight: 'calc(100dvh - 32px)',
         zIndex: 60,
       }}
-      className={`rounded-2xl backdrop-blur-md shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150 ${
+      className={`theme-modal-dialog rounded-2xl backdrop-blur-md shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150 ${
         isLight ? 'border border-slate-200 bg-white text-slate-800' : 'border border-slate-700 bg-slate-900/95 text-slate-100'
       }`}
     >
@@ -109,7 +125,7 @@ export function FloatingChartWindow({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className={`px-3 py-2 border-b flex items-center justify-between cursor-move select-none ${
+        className={`theme-modal-header px-3 py-2 border-b flex items-center justify-between cursor-move select-none ${
           isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-800/90 border-slate-700/80'
         }`}
       >

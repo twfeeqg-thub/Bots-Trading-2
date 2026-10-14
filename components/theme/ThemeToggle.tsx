@@ -84,7 +84,7 @@ export function ThemePaletteButton({ className = '' }: { className?: string }) {
         aria-label="تخصيص ألوان الثيم ومظهر التطبيق"
         title="تخصيص مظهر التطبيق وألوان الثيم"
         onClick={() => setIsCustomizerOpen(true)}
-        className={`group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all duration-200 select-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500/40 shadow-xs hover:scale-[1.02] active:scale-[0.98] ${
+        className={`group relative inline-flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition-all duration-200 select-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500/40 shadow-xs hover:scale-[1.02] active:scale-[0.98] ${
           isLight
             ? 'bg-white/95 border-slate-300 text-slate-800 hover:border-slate-400 hover:bg-slate-50'
             : 'bg-slate-900/95 border-slate-700 text-slate-200 hover:border-slate-500 hover:bg-slate-800'
@@ -95,7 +95,7 @@ export function ThemePaletteButton({ className = '' }: { className?: string }) {
       >
         {/* Paintbrush Swatch */}
         <div
-          className="w-5 h-5 rounded-lg flex items-center justify-center text-slate-950 transition-colors shadow-xs"
+          className="w-5 h-5 rounded-lg flex items-center justify-center text-slate-950 transition-colors shadow-xs shrink-0"
           style={{ backgroundColor: currentPalette.primaryColor }}
         >
           <Paintbrush className="w-3 h-3 stroke-2.5" />
@@ -103,13 +103,14 @@ export function ThemePaletteButton({ className = '' }: { className?: string }) {
 
         {/* Button Title */}
         <span className="flex items-center gap-1">
-          <Palette className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-500 transition-colors" />
-          <span className="font-semibold tracking-wide">🎨 ألوان الثيم</span>
+          <Palette className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-500 transition-colors hidden xs:inline" />
+          <span className="font-semibold tracking-wide hidden sm:inline">🎨 ألوان الثيم</span>
+          <span className="font-semibold tracking-wide sm:hidden text-[11px]">الثيم</span>
         </span>
 
         {/* Small Active Color Dot */}
         <span
-          className="w-2.5 h-2.5 rounded-full inline-block ring-2 ring-slate-800 shadow-xs"
+          className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full inline-block ring-2 ring-slate-800 shadow-xs shrink-0"
           style={{ backgroundColor: currentPalette.primaryColor }}
           title={currentPalette.nameAr}
         />

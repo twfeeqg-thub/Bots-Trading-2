@@ -70,16 +70,16 @@ export function ScannerView({ onSelectAssetForChart, onSelectAssetForTrade }: Sc
   };
 
   return (
-    <div id="scanner-view-container" className="space-y-4">
+    <div id="scanner-view-container" className="space-y-4 max-w-full overflow-hidden">
       {/* Top Controls Bar */}
-      <div id="scanner-controls-panel" className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 sm:p-5 space-y-4">
+      <div id="scanner-controls-panel" className="theme-section border rounded-xl p-3 sm:p-5 space-y-4 max-w-full">
         {/* Row 1: Connection & Periods */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           {/* Status Indicators */}
           <div className="flex flex-wrap items-center gap-3 text-xs">
             <div 
               id="ws-status-indicator" 
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-950/80 border border-slate-800 font-medium"
+              className="theme-card flex items-center gap-2 px-3 py-1.5 rounded-lg border font-medium"
             >
               <span className={`w-2 h-2 rounded-full ${
                 state.connectionStatus === 'CONNECTED' 
@@ -195,7 +195,7 @@ export function ScannerView({ onSelectAssetForChart, onSelectAssetForTrade }: Sc
       </div>
 
       {/* Main Scanner Table (Spec Sections 29, 30, 31) */}
-      <div id="scanner-table-wrapper" className="bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+      <div id="scanner-table-wrapper" className="theme-section bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-right border-collapse text-xs">
             <thead>
@@ -387,40 +387,40 @@ export function ScannerView({ onSelectAssetForChart, onSelectAssetForTrade }: Sc
 
       {/* Integration Context Modal (Spec Sections 36, 37: Preserving Future integration contracts) */}
       {selectedAssetModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h3 className="font-bold text-slate-100 text-base">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-md overflow-hidden">
+          <div className="theme-modal-dialog w-full max-w-md max-h-[90dvh] flex flex-col rounded-2xl border p-4 sm:p-6 shadow-2xl space-y-4 overflow-hidden">
+            <div className="theme-modal-header shrink-0 flex items-center justify-between pb-3 border-b -mx-4 -mt-4 px-4 pt-4 sm:-mx-6 sm:-mt-6 sm:px-6 sm:pt-6 rounded-t-2xl">
+              <h3 className="theme-heading font-bold text-base">
                 سياق الأصل: {selectedAssetModal}
               </h3>
               <button
                 type="button"
                 onClick={() => setSelectedAssetModal(null)}
-                className="text-slate-400 hover:text-slate-200 text-xs px-2 py-1 bg-slate-800 rounded"
+                className="theme-card text-xs px-2.5 py-1 rounded-lg border hover:scale-105 transition-all cursor-pointer"
               >
                 إغلاق
               </button>
             </div>
 
-            <div className="space-y-3 text-xs text-slate-300">
-              <div className="p-3 rounded-lg bg-slate-950 border border-slate-800/80 space-y-1.5">
+            <div className="flex-1 overflow-y-auto min-h-0 space-y-3 text-xs pr-0.5">
+              <div className="theme-card p-3 rounded-xl border space-y-1.5">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">الفترة الحالية:</span>
-                  <span className="font-mono text-emerald-400">{state.selectedPeriod}</span>
+                  <span className="opacity-75">الفترة الحالية:</span>
+                  <span className="font-mono font-semibold text-emerald-400">{state.selectedPeriod}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">حد التنبيه (Threshold):</span>
-                  <span className="font-mono text-slate-200">+{state.alertThreshold}%</span>
+                  <span className="opacity-75">حد التنبيه (Threshold):</span>
+                  <span className="font-mono font-semibold">+{state.alertThreshold}%</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">حالة الربط المعماري:</span>
-                  <span className="text-emerald-400">Scanner Ready (Phase 1)</span>
+                  <span className="opacity-75">حالة الربط المعماري:</span>
+                  <span className="font-semibold text-emerald-400">Scanner Ready (Phase 1)</span>
                 </div>
               </div>
 
-              <div className="p-3 rounded-lg bg-slate-800/40 border border-slate-700/50 space-y-2">
-                <span className="font-semibold text-slate-200 block">نقاط التكامل المستقبلية (قواعد Q المغلقة):</span>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
+              <div className="theme-card p-3 rounded-xl border space-y-2 opacity-90">
+                <span className="font-semibold theme-heading block">نقاط التكامل المستقبلية (قواعد Q المغلقة):</span>
+                <p className="text-[11px] opacity-80 leading-relaxed">
                   • <strong>Charts:</strong> تمرير سياق الرمز إلى الشارت عند بدء مرحلة Charts دون تكرار الاتصال.
                   <br />
                   • <strong>Execution (Spot/Convert):</strong> التنبيه هو إشارة فقط، والقرار النهائي بيد المستخدم دون شراء تلقائي.
@@ -428,7 +428,7 @@ export function ScannerView({ onSelectAssetForChart, onSelectAssetForTrade }: Sc
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 flex-wrap">
+            <div className="shrink-0 flex items-center justify-end gap-2 pt-3 flex-wrap border-t border-slate-800/80">
               <button
                 type="button"
                 onClick={() => {
@@ -438,7 +438,7 @@ export function ScannerView({ onSelectAssetForChart, onSelectAssetForTrade }: Sc
                   }
                   setSelectedAssetModal(null);
                 }}
-                className="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-slate-100 font-bold rounded-lg transition-colors flex items-center gap-1.5"
+                className="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-md"
               >
                 <span>إنشاء صفقة في Trade Manager</span>
               </button>
@@ -451,7 +451,7 @@ export function ScannerView({ onSelectAssetForChart, onSelectAssetForTrade }: Sc
                   }
                   setSelectedAssetModal(null);
                 }}
-                className="px-3 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-semibold rounded-lg"
+                className="theme-btn-primary px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer"
               >
                 عرض الشارت
               </button>

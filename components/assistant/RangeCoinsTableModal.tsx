@@ -110,9 +110,9 @@ export function RangeCoinsTableModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs">
+    <div className="fixed inset-0 z-60 flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-md overflow-hidden">
       <div
-        className={`w-full max-w-5xl max-h-[92vh] flex flex-col rounded-2xl shadow-2xl border overflow-hidden transition-colors ${
+        className={`theme-modal-dialog w-full max-w-5xl max-h-[90dvh] flex flex-col rounded-2xl shadow-2xl border overflow-hidden transition-colors ${
           isLight
             ? 'bg-white border-slate-200 text-slate-900'
             : 'bg-slate-900 border-slate-800 text-slate-100'
@@ -120,7 +120,7 @@ export function RangeCoinsTableModal({
       >
         {/* Header Bar */}
         <div
-          className={`p-4 border-b flex items-center justify-between shrink-0 ${
+          className={`theme-modal-header p-4 border-b flex items-center justify-between shrink-0 ${
             isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-slate-800'
           }`}
         >
@@ -136,7 +136,7 @@ export function RangeCoinsTableModal({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold">العملات العرضية وتقييم الجدوى</h3>
+                <h3 className="theme-heading text-base font-bold">العملات العرضية وتقييم الجدوى</h3>
                 <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   محرك المرحلة 2 (تجمع سعري)
                 </span>
@@ -258,7 +258,7 @@ export function RangeCoinsTableModal({
         </div>
 
         {/* Content Area: Table / Loading / Error */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+        <div className="flex-1 overflow-y-auto min-h-0 p-3 sm:p-4">
           {isLoading && items.length === 0 ? (
             <div className="py-20 flex flex-col items-center justify-center gap-3">
               <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />

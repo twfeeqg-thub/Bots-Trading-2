@@ -74,7 +74,7 @@ export function ThemeCustomizerModal({ isOpen, onClose }: ThemeCustomizerModalPr
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-md overflow-hidden animate-in fade-in duration-200"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -83,23 +83,28 @@ export function ThemeCustomizerModal({ isOpen, onClose }: ThemeCustomizerModalPr
         role="dialog"
         aria-modal="true"
         aria-labelledby="theme-modal-title"
-        className={`w-full max-w-xl rounded-2xl border shadow-2xl overflow-hidden transition-all duration-200 animate-in zoom-in-95 ${
+        className={`theme-modal-dialog w-full max-w-xl max-h-[90dvh] sm:max-h-[85vh] flex flex-col rounded-2xl border shadow-2xl overflow-hidden transition-all duration-200 animate-in zoom-in-95 backdrop-blur-xl ${
           isLight
             ? 'bg-white/95 border-slate-200 text-slate-900 shadow-slate-300/50'
             : 'bg-slate-900/95 border-slate-800 text-slate-100 shadow-black/80'
-        } backdrop-blur-xl`}
+        }`}
+        style={{
+          backgroundColor: isLight ? currentPalette.cardBgLight : currentPalette.cardBgDark,
+          borderColor: isLight ? currentPalette.cardBorderLight : currentPalette.cardBorderDark,
+          boxShadow: `0 20px 50px rgba(0, 0, 0, 0.6), 0 0 35px ${currentPalette.badgeBg}`,
+        }}
       >
-        {/* Modal Header */}
+        {/* Modal Header (Fixed / Shrink-0) */}
         <div
-          className={`flex items-center justify-between px-5 sm:px-6 py-4 border-b ${
-            isLight
-              ? 'border-slate-100 bg-slate-50/80'
-              : 'border-slate-800/80 bg-slate-950/60'
-          }`}
+          className="theme-modal-header shrink-0 flex items-center justify-between px-4 sm:px-6 py-3.5 border-b transition-colors"
+          style={{
+            borderColor: isLight ? currentPalette.cardBorderLight : currentPalette.cardBorderDark,
+            backgroundColor: isLight ? currentPalette.sectionBgLight : currentPalette.sectionBgDark,
+          }}
         >
           <div className="flex items-center gap-3">
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-xs transition-colors duration-200"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shadow-xs transition-colors duration-200 shrink-0"
               style={{
                 backgroundColor: currentPalette.primaryColor,
                 color: '#09090b',
@@ -110,11 +115,14 @@ export function ThemeCustomizerModal({ isOpen, onClose }: ThemeCustomizerModalPr
             <div>
               <h2
                 id="theme-modal-title"
-                className="font-bold text-base sm:text-lg tracking-tight"
+                className="theme-heading font-bold text-sm sm:text-lg tracking-tight"
+                style={{
+                  color: isLight ? currentPalette.headingColorLight : currentPalette.headingColorDark,
+                }}
               >
                 تخصيص مظهر التطبيق وألوان الثيم
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
                 Global Theme &amp; Ambient Workspace System
               </p>
             </div>
@@ -123,14 +131,14 @@ export function ThemeCustomizerModal({ isOpen, onClose }: ThemeCustomizerModalPr
             type="button"
             onClick={onClose}
             aria-label="إغلاق النافذة"
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-800/50 transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-800/50 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-5 sm:p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+        {/* Modal Body (Scrollable with flex-1 min-h-0) */}
+        <div className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-6 space-y-5 overscroll-contain">
           {/* Section 1: Mode Preference */}
           <div>
             <div className="flex items-center justify-between mb-2.5">
@@ -331,13 +339,13 @@ export function ThemeCustomizerModal({ isOpen, onClose }: ThemeCustomizerModalPr
           </div>
         </div>
 
-        {/* Modal Footer */}
+        {/* Modal Footer (Fixed / Shrink-0) */}
         <div
-          className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-5 sm:px-6 py-4 border-t ${
-            isLight
-              ? 'border-slate-100 bg-slate-50/80'
-              : 'border-slate-800/80 bg-slate-950/70'
-          }`}
+          className="shrink-0 flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-t transition-colors"
+          style={{
+            borderColor: isLight ? currentPalette.cardBorderLight : currentPalette.cardBorderDark,
+            backgroundColor: isLight ? currentPalette.sectionBgLight : currentPalette.sectionBgDark,
+          }}
         >
           <div className="text-[11px] text-slate-400 text-center sm:text-right">
             يتم تطبيق وحفظ كافة التفضيلات تلقائياً في المتصفح وتنعكس فورياً على كامل الشاشات.
@@ -345,7 +353,12 @@ export function ThemeCustomizerModal({ isOpen, onClose }: ThemeCustomizerModalPr
           <button
             type="button"
             onClick={onClose}
-            className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-amber-500/20 active:scale-95 bg-amber-500 text-slate-950 hover:bg-amber-400 cursor-pointer text-center"
+            className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer text-center"
+            style={{
+              backgroundColor: currentPalette.primaryColor,
+              color: '#09090b',
+              boxShadow: `0 4px 14px ${currentPalette.badgeBg}`,
+            }}
           >
             إغلاق وتطبيق المظهر
           </button>

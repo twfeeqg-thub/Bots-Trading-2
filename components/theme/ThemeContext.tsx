@@ -25,6 +25,16 @@ export interface AccentColorDefinition {
   badgeBorder: string;
   previewRing: string;
   description: string;
+  sectionBgDark: string;
+  sectionBorderDark: string;
+  cardBgDark: string;
+  cardBorderDark: string;
+  headingColorDark: string;
+  sectionBgLight: string;
+  sectionBorderLight: string;
+  cardBgLight: string;
+  cardBorderLight: string;
+  headingColorLight: string;
 }
 
 export const ACCENT_PALETTES: Record<'amber' | 'emerald' | 'cyan' | 'violet' | 'gold', AccentColorDefinition> = {
@@ -39,6 +49,16 @@ export const ACCENT_PALETTES: Record<'amber' | 'emerald' | 'cyan' | 'violet' | '
     badgeBorder: 'rgba(240, 185, 11, 0.4)',
     previewRing: 'ring-amber-500/40',
     description: 'اللون الأصلي الافتراضي الفاخر المستوحى من منصات التداول العالمية مع توهج ذهبي جذاب',
+    sectionBgDark: 'rgba(24, 20, 13, 0.88)',
+    sectionBorderDark: 'rgba(240, 185, 11, 0.24)',
+    cardBgDark: 'rgba(30, 24, 15, 0.92)',
+    cardBorderDark: 'rgba(240, 185, 11, 0.3)',
+    headingColorDark: '#fcd34d',
+    sectionBgLight: 'rgba(255, 251, 235, 0.92)',
+    sectionBorderLight: 'rgba(217, 119, 6, 0.24)',
+    cardBgLight: 'rgba(255, 255, 255, 0.96)',
+    cardBorderLight: 'rgba(217, 119, 6, 0.28)',
+    headingColorLight: '#92400e',
   },
   gold: {
     id: 'amber',
@@ -51,6 +71,16 @@ export const ACCENT_PALETTES: Record<'amber' | 'emerald' | 'cyan' | 'violet' | '
     badgeBorder: 'rgba(240, 185, 11, 0.4)',
     previewRing: 'ring-amber-500/40',
     description: 'اللون الأصلي الافتراضي الفاخر المستوحى من منصات التداول العالمية مع توهج ذهبي جذاب',
+    sectionBgDark: 'rgba(24, 20, 13, 0.88)',
+    sectionBorderDark: 'rgba(240, 185, 11, 0.24)',
+    cardBgDark: 'rgba(30, 24, 15, 0.92)',
+    cardBorderDark: 'rgba(240, 185, 11, 0.3)',
+    headingColorDark: '#fcd34d',
+    sectionBgLight: 'rgba(255, 251, 235, 0.92)',
+    sectionBorderLight: 'rgba(217, 119, 6, 0.24)',
+    cardBgLight: 'rgba(255, 255, 255, 0.96)',
+    cardBorderLight: 'rgba(217, 119, 6, 0.28)',
+    headingColorLight: '#92400e',
   },
   emerald: {
     id: 'emerald',
@@ -63,6 +93,16 @@ export const ACCENT_PALETTES: Record<'amber' | 'emerald' | 'cyan' | 'violet' | '
     badgeBorder: 'rgba(16, 185, 129, 0.4)',
     previewRing: 'ring-emerald-500/40',
     description: 'طابع السيولة الصاعدة وصفقات الشراء الخضراء مع طاقة تداول إيجابية وحيوية',
+    sectionBgDark: 'rgba(6, 26, 20, 0.88)',
+    sectionBorderDark: 'rgba(16, 185, 129, 0.24)',
+    cardBgDark: 'rgba(8, 34, 26, 0.92)',
+    cardBorderDark: 'rgba(16, 185, 129, 0.3)',
+    headingColorDark: '#6ee7b7',
+    sectionBgLight: 'rgba(236, 253, 245, 0.92)',
+    sectionBorderLight: 'rgba(5, 150, 105, 0.24)',
+    cardBgLight: 'rgba(255, 255, 255, 0.96)',
+    cardBorderLight: 'rgba(5, 150, 105, 0.28)',
+    headingColorLight: '#065f46',
   },
   cyan: {
     id: 'cyan',
@@ -75,6 +115,16 @@ export const ACCENT_PALETTES: Record<'amber' | 'emerald' | 'cyan' | 'violet' | '
     badgeBorder: 'rgba(6, 182, 212, 0.4)',
     previewRing: 'ring-cyan-500/40',
     description: 'طابع نيوني تقني مستقبلي عالي الوضوح ومريح جداً للعين خلال فترات المراقبة الطويلة',
+    sectionBgDark: 'rgba(6, 26, 36, 0.88)',
+    sectionBorderDark: 'rgba(6, 182, 212, 0.24)',
+    cardBgDark: 'rgba(8, 34, 46, 0.92)',
+    cardBorderDark: 'rgba(6, 182, 212, 0.3)',
+    headingColorDark: '#67e8f9',
+    sectionBgLight: 'rgba(236, 254, 255, 0.92)',
+    sectionBorderLight: 'rgba(8, 145, 178, 0.24)',
+    cardBgLight: 'rgba(255, 255, 255, 0.96)',
+    cardBorderLight: 'rgba(8, 145, 178, 0.28)',
+    headingColorLight: '#155e75',
   },
   violet: {
     id: 'violet',
@@ -87,6 +137,16 @@ export const ACCENT_PALETTES: Record<'amber' | 'emerald' | 'cyan' | 'violet' | '
     badgeBorder: 'rgba(139, 92, 246, 0.4)',
     previewRing: 'ring-purple-500/40',
     description: 'طابع تقني فاخر مستوحى من بروتوكولات وتطبيقات Web3 والتمويل اللامركزي الحديث',
+    sectionBgDark: 'rgba(24, 14, 40, 0.88)',
+    sectionBorderDark: 'rgba(139, 92, 246, 0.24)',
+    cardBgDark: 'rgba(30, 18, 50, 0.92)',
+    cardBorderDark: 'rgba(139, 92, 246, 0.3)',
+    headingColorDark: '#c4b5fd',
+    sectionBgLight: 'rgba(245, 243, 255, 0.92)',
+    sectionBorderLight: 'rgba(124, 58, 237, 0.24)',
+    cardBgLight: 'rgba(255, 255, 255, 0.96)',
+    cardBorderLight: 'rgba(124, 58, 237, 0.28)',
+    headingColorLight: '#5b21b6',
   },
 };
 

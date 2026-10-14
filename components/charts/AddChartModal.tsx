@@ -87,17 +87,17 @@ export function AddChartModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl p-5 text-slate-100 space-y-4 max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-150 overflow-hidden">
+      <div className="theme-modal-dialog w-full max-w-lg rounded-2xl border shadow-2xl p-4 sm:p-5 text-slate-100 space-y-3.5 max-h-[90dvh] flex flex-col overflow-hidden">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="theme-modal-header shrink-0 flex items-center justify-between border-b pb-3 -mx-4 -mt-4 px-4 pt-4 sm:-mx-5 sm:-mt-5 sm:px-5 sm:pt-5 rounded-t-2xl">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
               <Plus className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-slate-100">إضافة شارت جديد</h3>
-              <p className="text-[11px] text-slate-400">
+              <h3 className="theme-heading text-sm font-semibold">إضافة شارت جديد</h3>
+              <p className="text-[11px] opacity-75">
                 اختر العملة والفريم الزمني لإضافة شارت نشط (الحد الأقصى {MAX_ACTIVE_CHARTS} شارتات نشطة)
               </p>
             </div>
@@ -105,7 +105,7 @@ export function AddChartModal({
           <button
             type="button"
             onClick={handleResetAndClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -200,7 +200,7 @@ export function AddChartModal({
             </div>
 
             {/* Coin List */}
-            <div className="flex-1 overflow-hidden flex flex-col min-h-[180px]">
+            <div className="flex-1 overflow-hidden flex flex-col min-h-[120px] sm:min-h-[180px]">
               <label className="block text-[11px] font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
                 <Coins className="w-3.5 h-3.5 text-slate-400" />
                 <span>قائمة العملات المتاحة ({availableAssets.length}):</span>
@@ -250,7 +250,7 @@ export function AddChartModal({
 
         {/* Footer info & manual direct add */}
         {selectedSymbol && !showDuplicatePrompt && !isLimitReached && (
-          <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+          <div className="pt-2 border-t border-slate-800 flex items-center justify-between shrink-0">
             <div className="text-xs text-slate-400">
               المحدد: <strong className="text-emerald-400 font-mono">{selectedSymbol}</strong> بفريم <strong className="text-emerald-400">{selectedTimeframe}</strong>
             </div>

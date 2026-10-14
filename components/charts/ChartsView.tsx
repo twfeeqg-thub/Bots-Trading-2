@@ -319,10 +319,10 @@ export function ChartsView({ initialSymbol, onBackToScanner }: ChartsViewProps) 
   };
 
   return (
-    <div id="charts-view-container" className="space-y-4 pb-12">
+    <div id="charts-view-container" className="space-y-4 pb-12 max-w-full overflow-hidden">
       {/* Top Header Controls Bar */}
       <div
-        className={`rounded-2xl p-3 sm:p-4 shadow-sm flex flex-wrap items-center justify-between gap-3 ${
+        className={`rounded-2xl p-3 sm:p-4 shadow-sm flex flex-wrap items-center justify-between gap-3 theme-section ${
           isLight
             ? 'border border-slate-200 bg-white text-slate-800 shadow-sm'
             : 'border border-slate-800 bg-slate-900/80 backdrop-blur-sm text-slate-100'
@@ -334,7 +334,7 @@ export function ChartsView({ initialSymbol, onBackToScanner }: ChartsViewProps) 
             <button
               type="button"
               onClick={onBackToScanner}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
                 isLight
                   ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
@@ -348,7 +348,7 @@ export function ChartsView({ initialSymbol, onBackToScanner }: ChartsViewProps) 
           <div className="flex items-center gap-2">
             <LayoutGrid className="w-5 h-5 text-emerald-500" />
             <div>
-              <h2 className={`text-sm font-bold flex items-center gap-2 ${
+              <h2 className={`theme-heading text-sm font-bold flex items-center gap-2 ${
                 isLight ? 'text-slate-900' : 'text-slate-100'
               }`}>
                 <span>الشارتات التفاعلية (Multiple Charts)</span>

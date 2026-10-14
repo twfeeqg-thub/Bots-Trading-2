@@ -47,7 +47,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" suppressHydrationWarning>
+    <html lang="ar" dir="rtl" suppressHydrationWarning className="overflow-x-hidden max-w-full">
       <head>
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -74,7 +74,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body
         suppressHydrationWarning
-        className="antialiased selection:bg-amber-500/30 selection:text-amber-600 dark:selection:text-amber-200 min-h-screen transition-colors duration-200 relative"
+        className="antialiased selection:bg-amber-500/30 selection:text-amber-600 dark:selection:text-amber-200 min-h-screen transition-colors duration-200 relative overflow-x-hidden max-w-full"
       >
         <ThemeProvider>
           <WorkspaceBackground />

@@ -47,17 +47,17 @@ export function ClosedChartsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl p-5 text-slate-100 space-y-4 max-h-[85vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-150 overflow-hidden">
+      <div className="theme-modal-dialog w-full max-w-lg rounded-2xl border shadow-2xl p-4 sm:p-5 text-slate-100 space-y-3.5 max-h-[90dvh] flex flex-col overflow-hidden">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="theme-modal-header shrink-0 flex items-center justify-between border-b pb-3 -mx-4 -mt-4 px-4 pt-4 sm:-mx-5 sm:-mt-5 sm:px-5 sm:pt-5 rounded-t-2xl">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
               <Archive className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-slate-100">الشارتات المغلقة ({closedCharts.length})</h3>
-              <p className="text-[11px] text-slate-400">
+              <h3 className="theme-heading text-sm font-semibold">الشارتات المغلقة ({closedCharts.length})</h3>
+              <p className="text-[11px] opacity-75">
                 يمكن استعادة أي شارت مغلق بكامل إعداداته، أو حذفه نهائياً
               </p>
             </div>
@@ -65,7 +65,7 @@ export function ClosedChartsModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -108,7 +108,7 @@ export function ClosedChartsModal({
         )}
 
         {/* Closed Charts List */}
-        <div className="flex-1 overflow-y-auto rounded-xl border border-slate-800 bg-slate-950/60 divide-y divide-slate-800/60">
+        <div className="flex-1 overflow-y-auto min-h-0 rounded-xl border border-slate-800 bg-slate-950/60 divide-y divide-slate-800/60">
           {closedCharts.length === 0 ? (
             <div className="p-10 text-center text-xs text-slate-500 space-y-2">
               <Archive className="w-8 h-8 mx-auto text-slate-600 opacity-60" />
@@ -165,7 +165,7 @@ export function ClosedChartsModal({
         </div>
 
         {/* Note about Restore bypassing 10-chart limit */}
-        <div className="text-[11px] text-slate-400 bg-slate-950 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
+        <div className="shrink-0 text-[11px] text-slate-400 bg-slate-950 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
           <span>* استعادة الشارت المغلق لا تخضع لحد الـ 10 شارتات.</span>
           <button
             type="button"
