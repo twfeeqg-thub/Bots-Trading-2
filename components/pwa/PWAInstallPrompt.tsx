@@ -123,17 +123,15 @@ export function PWAInstallButton({ className = '', variant = 'compact' }: PWAIns
 export function PWAFlowBanner() {
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
   const { isLight } = useTheme();
-  const [dismissed, setDismissed] = useState(true); // default true until checked client-side
-  const [showIOSModal, setShowIOSModal] = useState(false);
-
-  useEffect(() => {
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === 'undefined') return true;
     try {
-      const isDismissed = localStorage.getItem('project_q_pwa_dismissed') === 'true';
-      if (!isDismissed && !isInstalled) {
-        setDismissed(false);
-      }
-    } catch {}
-  }, [isInstalled]);
+      return localStorage.getItem('project_q_pwa_dismissed') === 'true';
+    } catch {
+      return true;
+    }
+  });
+  const [showIOSModal, setShowIOSModal] = useState(false);
 
   if (isInstalled || dismissed) {
     return null;

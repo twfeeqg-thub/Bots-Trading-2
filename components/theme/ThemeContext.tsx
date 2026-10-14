@@ -12,10 +12,10 @@ import React, {
 
 export type ThemeModePreference = 'system' | 'dark' | 'light';
 export type ThemeMode = 'dark' | 'light';
-export type AccentColor = 'gold' | 'emerald' | 'cyan' | 'violet';
+export type AccentColor = 'amber' | 'emerald' | 'cyan' | 'violet' | 'gold';
 
 export interface AccentColorDefinition {
-  id: AccentColor;
+  id: 'amber' | 'emerald' | 'cyan' | 'violet';
   name: string;
   nameAr: string;
   emoji: string;
@@ -24,63 +24,85 @@ export interface AccentColorDefinition {
   badgeBg: string;
   badgeBorder: string;
   previewRing: string;
+  description: string;
 }
 
-export const ACCENT_PALETTES: Record<AccentColor, AccentColorDefinition> = {
-  gold: {
-    id: 'gold',
+export const ACCENT_PALETTES: Record<'amber' | 'emerald' | 'cyan' | 'violet' | 'gold', AccentColorDefinition> = {
+  amber: {
+    id: 'amber',
     name: 'Binance Gold',
-    nameAr: 'ذهبي Binance الأصلي',
+    nameAr: 'الذهبي الكلاسيكي (Binance Gold)',
     emoji: '🟡',
     primaryColor: '#f0b90b',
     hoverColor: '#d97706',
     badgeBg: 'rgba(240, 185, 11, 0.15)',
     badgeBorder: 'rgba(240, 185, 11, 0.4)',
-    previewRing: 'ring-amber-400',
+    previewRing: 'ring-amber-500/40',
+    description: 'اللون الأصلي الافتراضي الفاخر المستوحى من منصات التداول العالمية مع توهج ذهبي جذاب',
+  },
+  gold: {
+    id: 'amber',
+    name: 'Binance Gold',
+    nameAr: 'الذهبي الكلاسيكي (Binance Gold)',
+    emoji: '🟡',
+    primaryColor: '#f0b90b',
+    hoverColor: '#d97706',
+    badgeBg: 'rgba(240, 185, 11, 0.15)',
+    badgeBorder: 'rgba(240, 185, 11, 0.4)',
+    previewRing: 'ring-amber-500/40',
+    description: 'اللون الأصلي الافتراضي الفاخر المستوحى من منصات التداول العالمية مع توهج ذهبي جذاب',
   },
   emerald: {
     id: 'emerald',
-    name: 'Emerald Green',
-    nameAr: 'أخضر زمردي',
+    name: 'Bullish Gain',
+    nameAr: 'الأخضر الزمردي (Bullish Gain)',
     emoji: '🟢',
     primaryColor: '#10b981',
     hoverColor: '#059669',
     badgeBg: 'rgba(16, 185, 129, 0.15)',
     badgeBorder: 'rgba(16, 185, 129, 0.4)',
-    previewRing: 'ring-emerald-400',
+    previewRing: 'ring-emerald-500/40',
+    description: 'طابع السيولة الصاعدة وصفقات الشراء الخضراء مع طاقة تداول إيجابية وحيوية',
   },
   cyan: {
     id: 'cyan',
     name: 'Cyber Cyan',
-    nameAr: 'أزرق سيبراني',
+    nameAr: 'الأزرق السيبراني (Cyber Cyan)',
     emoji: '🔵',
     primaryColor: '#06b6d4',
     hoverColor: '#0891b2',
     badgeBg: 'rgba(6, 182, 212, 0.15)',
     badgeBorder: 'rgba(6, 182, 212, 0.4)',
-    previewRing: 'ring-cyan-400',
+    previewRing: 'ring-cyan-500/40',
+    description: 'طابع نيوني تقني مستقبلي عالي الوضوح ومريح جداً للعين خلال فترات المراقبة الطويلة',
   },
   violet: {
     id: 'violet',
-    name: 'Crypto Violet',
-    nameAr: 'بنفسجي عصري',
+    name: 'Web3 Crypto',
+    nameAr: 'البنفسجي العصري (Web3 Crypto)',
     emoji: '🟣',
     primaryColor: '#8b5cf6',
     hoverColor: '#7c3aed',
     badgeBg: 'rgba(139, 92, 246, 0.15)',
     badgeBorder: 'rgba(139, 92, 246, 0.4)',
-    previewRing: 'ring-purple-400',
+    previewRing: 'ring-purple-500/40',
+    description: 'طابع تقني فاخر مستوحى من بروتوكولات وتطبيقات Web3 والتمويل اللامركزي الحديث',
   },
 };
 
-interface ThemeContextType {
-  modePreference: ThemeModePreference;
-  theme: ThemeMode; // resolved: 'dark' | 'light'
+export interface ThemeContextType {
+  themeMode: ThemeModePreference;
+  modePreference: ThemeModePreference; // backward compatible alias
+  theme: ThemeMode; // resolved 'dark' | 'light'
   isLight: boolean;
   isDark: boolean;
-  accent: AccentColor;
-  setModePreference: (pref: ThemeModePreference) => void;
-  setAccent: (accent: AccentColor) => void;
+  accent: 'amber' | 'emerald' | 'cyan' | 'violet';
+  accentColor: 'amber' | 'emerald' | 'cyan' | 'violet'; // alias
+  setThemeMode: (mode: ThemeModePreference) => void;
+  setModePreference: (pref: ThemeModePreference) => void; // alias
+  setAccentColor: (accent: 'amber' | 'emerald' | 'cyan' | 'violet') => void;
+  setAccent: (accent: 'amber' | 'emerald' | 'cyan' | 'violet' | 'gold') => void; // alias
+  cycleThemeMode: () => void;
   toggleTheme: () => void;
   setTheme: (theme: ThemeMode) => void;
   isCustomizerOpen: boolean;
@@ -99,20 +121,24 @@ function getStoredModePref(): ThemeModePreference {
   try {
     const val = localStorage.getItem(STORAGE_MODE_KEY);
     if (val === 'system' || val === 'light' || val === 'dark') return val;
-    // Backward compatibility with previous storage key
     const legacy = localStorage.getItem('project_q_theme_mode');
     if (legacy === 'light' || legacy === 'dark') return legacy;
   } catch {}
   return 'dark';
 }
 
-function getStoredAccent(): AccentColor {
-  if (typeof window === 'undefined') return 'gold';
+function normalizeAccent(val: string | null): 'amber' | 'emerald' | 'cyan' | 'violet' {
+  if (val === 'emerald' || val === 'cyan' || val === 'violet') return val;
+  return 'amber'; // 'gold', 'amber', or default
+}
+
+function getStoredAccent(): 'amber' | 'emerald' | 'cyan' | 'violet' {
+  if (typeof window === 'undefined') return 'amber';
   try {
     const val = localStorage.getItem(STORAGE_ACCENT_KEY);
-    if (val === 'gold' || val === 'emerald' || val === 'cyan' || val === 'violet') return val;
+    return normalizeAccent(val);
   } catch {}
-  return 'gold'; // Default to Binance Gold
+  return 'amber';
 }
 
 function resolveMode(pref: ThemeModePreference): ThemeMode {
@@ -125,7 +151,7 @@ function resolveMode(pref: ThemeModePreference): ThemeMode {
   return pref;
 }
 
-function applyThemeToDocument(mode: ThemeMode, accent: AccentColor) {
+function applyThemeToDocument(mode: ThemeMode, accent: 'amber' | 'emerald' | 'cyan' | 'violet') {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
 
@@ -140,18 +166,23 @@ function applyThemeToDocument(mode: ThemeMode, accent: AccentColor) {
     root.setAttribute('data-theme', 'dark');
   }
 
-  // Apply accent attribute
+  // Apply accent attribute (this powers CSS variables overrides in globals.css)
   root.setAttribute('data-accent', accent);
 }
 
 const ThemeContext = createContext<ThemeContextType>({
+  themeMode: 'dark',
   modePreference: 'dark',
   theme: 'dark',
   isLight: false,
   isDark: true,
-  accent: 'gold',
+  accent: 'amber',
+  accentColor: 'amber',
+  setThemeMode: () => {},
   setModePreference: () => {},
+  setAccentColor: () => {},
   setAccent: () => {},
+  cycleThemeMode: () => {},
   toggleTheme: () => {},
   setTheme: () => {},
   isCustomizerOpen: false,
@@ -192,16 +223,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return `${pref}:${acc}`;
   }, []);
 
-  const getServerSnapshot = useCallback(() => 'dark:gold', []);
+  const getServerSnapshot = useCallback(() => 'dark:amber', []);
 
   const stateStr = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  const [rawModePref, rawAccent] = (mounted ? stateStr : 'dark:gold').split(':') as [
+  const [rawModePref, rawAccent] = (mounted ? stateStr : 'dark:amber').split(':') as [
     ThemeModePreference,
-    AccentColor
+    string
   ];
 
   const modePreference = mounted ? rawModePref : 'dark';
-  const accent = (mounted ? rawAccent : 'gold') as AccentColor;
+  const themeMode = modePreference;
+  const accent = normalizeAccent(rawAccent);
   const theme = resolveMode(modePreference);
   const isLight = theme === 'light';
   const isDark = !isLight;
@@ -212,7 +244,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [mounted, theme, accent]);
 
-  const setModePreference = useCallback(
+  const setThemeMode = useCallback(
     (pref: ThemeModePreference) => {
       try {
         localStorage.setItem(STORAGE_MODE_KEY, pref);
@@ -225,54 +257,61 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     [accent]
   );
 
-  const setAccent = useCallback(
-    (newAccent: AccentColor) => {
+  const setAccentColor = useCallback(
+    (newAccent: 'amber' | 'emerald' | 'cyan' | 'violet' | 'gold') => {
       try {
-        localStorage.setItem(STORAGE_ACCENT_KEY, newAccent);
-        applyThemeToDocument(theme, newAccent);
+        const normalized = normalizeAccent(newAccent);
+        localStorage.setItem(STORAGE_ACCENT_KEY, normalized);
+        applyThemeToDocument(theme, normalized);
         window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
       } catch {}
     },
     [theme]
   );
 
-  const setTheme = useCallback(
-    (newTheme: ThemeMode) => {
-      setModePreference(newTheme);
-    },
-    [setModePreference]
-  );
+  const cycleThemeMode = useCallback(() => {
+    const order: ThemeModePreference[] = ['system', 'dark', 'light'];
+    const currentIndex = order.indexOf(modePreference);
+    const nextIndex = (currentIndex + 1) % order.length;
+    setThemeMode(order[nextIndex]);
+  }, [modePreference, setThemeMode]);
 
   const toggleTheme = useCallback(() => {
     const next: ThemeMode = theme === 'light' ? 'dark' : 'light';
-    setModePreference(next);
-  }, [theme, setModePreference]);
+    setThemeMode(next);
+  }, [theme, setThemeMode]);
 
   const value = useMemo(
     () => ({
+      themeMode,
       modePreference,
       theme,
       isLight,
       isDark,
       accent,
-      setModePreference,
-      setAccent,
+      accentColor: accent,
+      setThemeMode,
+      setModePreference: setThemeMode,
+      setAccentColor,
+      setAccent: setAccentColor,
+      cycleThemeMode,
       toggleTheme,
-      setTheme,
+      setTheme: (t: ThemeMode) => setThemeMode(t),
       isCustomizerOpen,
       setIsCustomizerOpen,
       mounted,
     }),
     [
+      themeMode,
       modePreference,
       theme,
       isLight,
       isDark,
       accent,
-      setModePreference,
-      setAccent,
+      setThemeMode,
+      setAccentColor,
+      cycleThemeMode,
       toggleTheme,
-      setTheme,
       isCustomizerOpen,
       mounted,
     ]

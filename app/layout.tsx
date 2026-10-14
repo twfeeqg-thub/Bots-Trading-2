@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme/ThemeContext';
+import { WorkspaceBackground } from '@/components/theme/WorkspaceBackground';
 import { PWARegister } from '@/components/pwa/PWARegister';
 import { PWAFlowBanner } from '@/components/pwa/PWAInstallPrompt';
 
@@ -57,8 +58,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{
-              var m=localStorage.getItem('project_q_theme_mode_pref')||localStorage.getItem('project_q_theme_mode');
-              var a=localStorage.getItem('project_q_theme_accent')||'gold';
+              var m=localStorage.getItem('project_q_theme_mode_pref')||localStorage.getItem('project_q_theme_mode')||'dark';
+              var a=localStorage.getItem('project_q_theme_accent')||'amber';
+              if(a==='gold') a='amber';
               var isDark = true;
               if(m==='light'){ isDark = false; }
               else if(m==='system' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches){ isDark = false; }
@@ -72,9 +74,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body
         suppressHydrationWarning
-        className="antialiased selection:bg-amber-500 selection:text-slate-950 min-h-screen transition-colors duration-200"
+        className="antialiased selection:bg-amber-500/30 selection:text-amber-600 dark:selection:text-amber-200 min-h-screen transition-colors duration-200 relative"
       >
         <ThemeProvider>
+          <WorkspaceBackground />
           <PWARegister />
           {children}
           <PWAFlowBanner />

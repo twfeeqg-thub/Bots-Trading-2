@@ -50,19 +50,13 @@ export default function HomePage() {
     <div
       id="project-q-root"
       suppressHydrationWarning
-      className={`flex flex-col min-h-screen transition-colors duration-200 ${
-        isLight ? 'bg-slate-100 text-slate-900' : 'bg-slate-950 text-slate-100'
-      }`}
+      className="flex flex-col min-h-screen transition-colors duration-200 bg-transparent text-slate-900 dark:text-slate-100"
     >
       {/* Top Header */}
       <header
         id="main-header"
         suppressHydrationWarning
-        className={`sticky top-0 z-40 border-b backdrop-blur-md px-3 sm:px-6 py-2.5 sm:py-3 transition-colors duration-200 ${
-          isLight
-            ? 'border-slate-200 bg-white/95 text-slate-900 shadow-xs'
-            : 'border-slate-800 bg-slate-900/90 text-slate-100'
-        }`}
+        className="sticky top-0 z-40 border-b backdrop-blur-md px-3 sm:px-6 py-2.5 sm:py-3 transition-colors duration-200 border-slate-200/80 bg-white/80 dark:border-slate-800/80 dark:bg-slate-900/80 text-slate-900 dark:text-slate-100 shadow-xs"
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
           {/* Brand & Identity */}
@@ -239,9 +233,7 @@ export default function HomePage() {
       {/* Main Content Area */}
       <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 space-y-6 pb-24 md:pb-8">
         {/* Collapsible Architecture Pipeline Banner */}
-        <section id="project-flow-banner" className={`rounded-2xl border p-4 shadow-xs transition-colors ${
-          isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-slate-800'
-        }`}>
+        <section id="project-flow-banner" className="rounded-2xl border p-4 shadow-md backdrop-blur-md transition-colors border-slate-200/80 bg-white/80 dark:border-slate-800/90 dark:bg-slate-900/80">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Activity 

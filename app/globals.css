@@ -1,62 +1,139 @@
 @import "tailwindcss";
 
 :root {
-  /* Default: Binance Gold */
+  /* Default amber (Binance Gold) 50-950 scale */
+  --color-amber-50: #fffbeb;
+  --color-amber-100: #fef3c7;
+  --color-amber-200: #fde68a;
+  --color-amber-300: #fcd34d;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f0b90b;
+  --color-amber-600: #d97706;
+  --color-amber-700: #b45309;
+  --color-amber-800: #92400e;
+  --color-amber-900: #78350f;
+  --color-amber-950: #451a03;
+
+  /* Global Theme Accent Variables */
   --theme-accent: #f0b90b;
   --theme-accent-hover: #d97706;
   --theme-accent-subtle: rgba(240, 185, 11, 0.15);
   --theme-accent-border: rgba(240, 185, 11, 0.35);
   --theme-accent-text: #f0b90b;
   --theme-accent-contrast: #09090b;
-  --theme-accent-glow: 0 0 20px rgba(240, 185, 11, 0.25);
+  --theme-accent-glow: 0 0 24px rgba(240, 185, 11, 0.3);
+
   color-scheme: dark;
 }
 
-/* Emerald Green Accent */
+/* =========================================================================
+   1. ACCENT OVERRIDES: CSS Variables Palette Overrides
+   Dynamically remaps --color-amber-50 through --color-amber-950
+   so any Tailwind amber-* class across the whole application instantly transforms!
+   ========================================================================= */
+
+/* 1.1 Classic Gold (amber / gold - Binance Gold) */
+:root[data-accent="amber"],
+:root[data-accent="gold"],
+[data-accent="amber"],
+[data-accent="gold"] {
+  --color-amber-50: #fffbeb;
+  --color-amber-100: #fef3c7;
+  --color-amber-200: #fde68a;
+  --color-amber-300: #fcd34d;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f0b90b;
+  --color-amber-600: #d97706;
+  --color-amber-700: #b45309;
+  --color-amber-800: #92400e;
+  --color-amber-900: #78350f;
+  --color-amber-950: #451a03;
+
+  --theme-accent: #f0b90b;
+  --theme-accent-hover: #d97706;
+  --theme-accent-subtle: rgba(240, 185, 11, 0.15);
+  --theme-accent-border: rgba(240, 185, 11, 0.35);
+  --theme-accent-text: #f0b90b;
+  --theme-accent-contrast: #09090b;
+  --theme-accent-glow: 0 0 24px rgba(240, 185, 11, 0.3);
+}
+
+/* 1.2 Emerald Green (emerald - Bullish Gain) */
+:root[data-accent="emerald"],
 [data-accent="emerald"] {
+  --color-amber-50: #ecfdf5;
+  --color-amber-100: #d1fae5;
+  --color-amber-200: #a7f3d0;
+  --color-amber-300: #6ee7b7;
+  --color-amber-400: #34d399;
+  --color-amber-500: #10b981;
+  --color-amber-600: #059669;
+  --color-amber-700: #047857;
+  --color-amber-800: #065f46;
+  --color-amber-900: #064e3b;
+  --color-amber-950: #022c22;
+
   --theme-accent: #10b981;
   --theme-accent-hover: #059669;
   --theme-accent-subtle: rgba(16, 185, 129, 0.15);
   --theme-accent-border: rgba(16, 185, 129, 0.35);
   --theme-accent-text: #10b981;
   --theme-accent-contrast: #ffffff;
-  --theme-accent-glow: 0 0 20px rgba(16, 185, 129, 0.25);
+  --theme-accent-glow: 0 0 24px rgba(16, 185, 129, 0.3);
 }
 
-/* Cyber Cyan Accent */
+/* 1.3 Cyber Cyan (cyan - Cyber Cyan) */
+:root[data-accent="cyan"],
 [data-accent="cyan"] {
+  --color-amber-50: #ecfeff;
+  --color-amber-100: #cffafe;
+  --color-amber-200: #a5f3fc;
+  --color-amber-300: #67e8f9;
+  --color-amber-400: #22d3ee;
+  --color-amber-500: #06b6d4;
+  --color-amber-600: #0891b2;
+  --color-amber-700: #0e7490;
+  --color-amber-800: #155e75;
+  --color-amber-900: #164e63;
+  --color-amber-950: #083344;
+
   --theme-accent: #06b6d4;
   --theme-accent-hover: #0891b2;
   --theme-accent-subtle: rgba(6, 182, 212, 0.15);
   --theme-accent-border: rgba(6, 182, 212, 0.35);
   --theme-accent-text: #06b6d4;
   --theme-accent-contrast: #09090b;
-  --theme-accent-glow: 0 0 20px rgba(6, 182, 212, 0.25);
+  --theme-accent-glow: 0 0 24px rgba(6, 182, 212, 0.3);
 }
 
-/* Crypto Violet Accent */
+/* 1.4 Web3 Violet (violet - Web3 Crypto) */
+:root[data-accent="violet"],
 [data-accent="violet"] {
+  --color-amber-50: #f5f3ff;
+  --color-amber-100: #ede9fe;
+  --color-amber-200: #ddd6fe;
+  --color-amber-300: #c4b5fd;
+  --color-amber-400: #a78bfa;
+  --color-amber-500: #8b5cf6;
+  --color-amber-600: #7c3aed;
+  --color-amber-700: #6d28d9;
+  --color-amber-800: #5b21b6;
+  --color-amber-900: #4c1d95;
+  --color-amber-950: #2e1065;
+
   --theme-accent: #8b5cf6;
   --theme-accent-hover: #7c3aed;
   --theme-accent-subtle: rgba(139, 92, 246, 0.15);
   --theme-accent-border: rgba(139, 92, 246, 0.35);
   --theme-accent-text: #8b5cf6;
   --theme-accent-contrast: #ffffff;
-  --theme-accent-glow: 0 0 20px rgba(139, 92, 246, 0.25);
+  --theme-accent-glow: 0 0 24px rgba(139, 92, 246, 0.3);
 }
 
-/* Binance Gold Accent */
-[data-accent="gold"] {
-  --theme-accent: #f0b90b;
-  --theme-accent-hover: #d97706;
-  --theme-accent-subtle: rgba(240, 185, 11, 0.15);
-  --theme-accent-border: rgba(240, 185, 11, 0.35);
-  --theme-accent-text: #f0b90b;
-  --theme-accent-contrast: #09090b;
-  --theme-accent-glow: 0 0 20px rgba(240, 185, 11, 0.25);
-}
+/* =========================================================================
+   2. LIGHT & DARK MODE OVERRIDES
+   ========================================================================= */
 
-/* Light Mode Overrides */
 html.light {
   color-scheme: light;
 }
@@ -71,12 +148,15 @@ html.dark body {
   color: #f8fafc;
 }
 
+/* Light Mode Accent adjustments for optimal text contrast */
+html.light[data-accent="amber"],
 html.light[data-accent="gold"],
+html.light [data-accent="amber"],
 html.light [data-accent="gold"] {
   --theme-accent: #d97706;
   --theme-accent-hover: #b45309;
-  --theme-accent-subtle: #fef3c7;
-  --theme-accent-border: #fcd34d;
+  --theme-accent-subtle: rgba(217, 119, 6, 0.12);
+  --theme-accent-border: rgba(217, 119, 6, 0.35);
   --theme-accent-text: #b45309;
   --theme-accent-contrast: #ffffff;
 }
@@ -85,8 +165,8 @@ html.light[data-accent="emerald"],
 html.light [data-accent="emerald"] {
   --theme-accent: #059669;
   --theme-accent-hover: #047857;
-  --theme-accent-subtle: #d1fae5;
-  --theme-accent-border: #6ee7b7;
+  --theme-accent-subtle: rgba(5, 150, 105, 0.12);
+  --theme-accent-border: rgba(5, 150, 105, 0.35);
   --theme-accent-text: #047857;
   --theme-accent-contrast: #ffffff;
 }
@@ -95,8 +175,8 @@ html.light[data-accent="cyan"],
 html.light [data-accent="cyan"] {
   --theme-accent: #0891b2;
   --theme-accent-hover: #0e7490;
-  --theme-accent-subtle: #cffafe;
-  --theme-accent-border: #67e8f9;
+  --theme-accent-subtle: rgba(8, 145, 178, 0.12);
+  --theme-accent-border: rgba(8, 145, 178, 0.35);
   --theme-accent-text: #0e7490;
   --theme-accent-contrast: #ffffff;
 }
@@ -105,13 +185,45 @@ html.light[data-accent="violet"],
 html.light [data-accent="violet"] {
   --theme-accent: #7c3aed;
   --theme-accent-hover: #6d28d9;
-  --theme-accent-subtle: #ede9fe;
-  --theme-accent-border: #c4b5fd;
+  --theme-accent-subtle: rgba(124, 58, 237, 0.12);
+  --theme-accent-border: rgba(124, 58, 237, 0.35);
   --theme-accent-text: #6d28d9;
   --theme-accent-contrast: #ffffff;
 }
 
-/* Dynamic theme helper classes */
+/* =========================================================================
+   3. SELECTION & GLASSMORPHISM
+   ========================================================================= */
+
+::selection {
+  background-color: rgba(245, 158, 11, 0.3);
+  color: var(--color-amber-600);
+}
+
+html.dark ::selection {
+  background-color: rgba(245, 158, 11, 0.3);
+  color: var(--color-amber-200);
+}
+
+html.light ::selection {
+  background-color: rgba(217, 119, 6, 0.25);
+  color: var(--color-amber-700);
+}
+
+/* Glassmorphism utility panel */
+.glass-panel {
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+html.dark .glass-panel {
+  background-color: rgba(15, 23, 42, 0.8);
+  border-color: rgba(30, 41, 59, 0.9);
+}
+
+/* Helper dynamic classes */
 .theme-btn-primary {
   background-color: var(--theme-accent) !important;
   color: var(--theme-accent-contrast) !important;
