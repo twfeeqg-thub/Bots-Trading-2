@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   Key, 
@@ -11,7 +11,11 @@ import {
   Sparkles,
   AlertTriangle,
   RefreshCw,
-  PlusCircle
+  PlusCircle,
+  ArrowRight,
+  Maximize2,
+  Minimize2,
+  Minus
 } from 'lucide-react';
 import { 
   AIProvider, 
@@ -45,6 +49,55 @@ export function AssistantSettingsModal({
   const [isRefreshingModels, setIsRefreshingModels] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Window Management States
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef({ startX: 0, startY: 0, posX: 0, posY: 0 });
+
+  // Handle Dragging
+  const handleStartDrag = (e: React.MouseEvent | React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button, input, select, a, textarea')) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    setIsDragging(true);
+    dragStartRef.current = {
+      startX: clientX,
+      startY: clientY,
+      posX: position.x,
+      posY: position.y,
+    };
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      const deltaX = clientX - dragStartRef.current.startX;
+      const deltaY = clientY - dragStartRef.current.startY;
+      setPosition({
+        x: dragStartRef.current.posX + deltaX,
+        y: dragStartRef.current.posY + deltaY,
+      });
+    };
+    const handleEnd = () => setIsDragging(false);
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+    window.addEventListener('touchmove', handleMove);
+    window.addEventListener('touchend', handleEnd);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleEnd);
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('touchend', handleEnd);
+    };
+  }, [isDragging]);
 
   if (!isOpen) return null;
 
@@ -165,41 +218,129 @@ export function AssistantSettingsModal({
     }, 400);
   };
 
+  if (isMinimized) {
+    return (
+      <div
+        className={`fixed bottom-4 right-4 z-50 p-2.5 rounded-xl border shadow-2xl flex items-center gap-3 transition-all ${
+          isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-slate-100'
+        }`}
+      >
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => setIsMinimized(false)}>
+          <Cpu className="w-4 h-4 text-emerald-400" />
+          <span className="text-xs font-bold">إعدادات المساعد الذكي</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setIsMinimized(false)}
+            title="استعادة النافذة"
+            className="p-1 rounded-lg hover:bg-slate-700/30 text-emerald-400"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            title="إغلاق والعودة"
+            className="p-1 rounded-lg hover:bg-slate-700/30 text-slate-400 hover:text-rose-400"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200 overflow-hidden">
       <div
-        className={`theme-modal-dialog w-full max-w-lg rounded-2xl border shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] ${
+        style={{
+          transform: isMaximized ? 'none' : `translate(${position.x}px, ${position.y}px)`,
+        }}
+        className={`theme-modal-dialog flex flex-col shadow-2xl border transition-all ${
           isLight
             ? 'bg-white border-slate-200 text-slate-900'
             : 'bg-slate-900 border-slate-800 text-slate-100'
+        } ${
+          isMaximized
+            ? 'fixed inset-0 w-full h-full max-w-none max-h-none rounded-none'
+            : 'w-full max-w-lg rounded-2xl overflow-hidden max-h-[90dvh]'
         }`}
       >
-        {/* Header */}
-        <div className={`theme-modal-header shrink-0 p-3.5 sm:p-4 border-b flex items-center justify-between ${
-          isLight ? 'border-slate-200 bg-slate-50' : 'border-slate-800 bg-slate-950/60'
-        }`}>
-          <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center border ${
+        {/* Header Bar with Drag & Controls */}
+        <div
+          onMouseDown={handleStartDrag}
+          onTouchStart={handleStartDrag}
+          className={`theme-modal-header shrink-0 p-3 sm:p-3.5 border-b flex items-center justify-between select-none cursor-move ${
+            isLight ? 'border-slate-200 bg-slate-50' : 'border-slate-800 bg-slate-950/60'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {/* Back Button (العودة إلى المساعد) */}
+            <button
+              type="button"
+              onClick={onClose}
+              title="العودة إلى المساعد"
+              className={`p-1.5 rounded-lg border transition-colors flex items-center gap-1 text-xs font-semibold cursor-pointer ${
+                isLight
+                  ? 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'
+                  : 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-200'
+              }`}
+            >
+              <ArrowRight className="w-4 h-4 text-emerald-400" />
+              <span className="hidden sm:inline">العودة</span>
+            </button>
+
+            <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center border ${
               isLight ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
             }`}>
               <Cpu className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="theme-heading text-sm font-bold">إعدادات المساعد الذكي والمزودين</h3>
-              <p className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                اختر المزود، حدّث النماذج المتاحة حياً، أو أدخل نموذجًا مخصصًا
+              <h3 className="theme-heading text-xs sm:text-sm font-bold">إعدادات المساعد والمزودين</h3>
+              <p className={`text-[10px] hidden sm:block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                اختر المزود، حدّث النماذج حياً، أو أدخل نموذجًا مخصصًا
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className={`p-1.5 rounded-lg transition-colors ${
-              isLight ? 'hover:bg-slate-200 text-slate-500' : 'hover:bg-slate-800 text-slate-400'
-            }`}
-          >
-            <X className="w-4 h-4" />
-          </button>
+
+          <div className="flex items-center gap-1">
+            {/* Minimize */}
+            <button
+              type="button"
+              onClick={() => setIsMinimized(true)}
+              title="تصغير النافذة"
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                isLight ? 'hover:bg-slate-200 text-slate-500' : 'hover:bg-slate-800 text-slate-400'
+              }`}
+            >
+              <Minus className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Maximize / Restore */}
+            <button
+              type="button"
+              onClick={() => setIsMaximized(!isMaximized)}
+              title={isMaximized ? 'استعادة الحجم الأصلي' : 'تكبير النافذة'}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                isLight ? 'hover:bg-slate-200 text-slate-500' : 'hover:bg-slate-800 text-slate-400'
+              }`}
+            >
+              {isMaximized ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </button>
+
+            {/* Close */}
+            <button
+              type="button"
+              onClick={onClose}
+              title="إغلاق والعودة"
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                isLight ? 'hover:bg-slate-200 text-slate-500' : 'hover:bg-slate-800 text-slate-400'
+              }`}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Body Content */}

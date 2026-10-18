@@ -16,22 +16,21 @@ import {
   MessageSquare,
   Sparkles,
   ChevronDown,
-  Loader2
+  Loader2,
+  ArrowRight,
+  Maximize2,
+  Minimize2,
+  Minus
 } from 'lucide-react';
 import { useTheme } from '@/components/theme/ThemeContext';
 import { RangeCoinScanItem } from '@/app/api/assistant/range-analysis/route';
+import { UNIFIED_ASSISTANT_TIMEFRAMES } from './AssistantTypes';
 
 interface RangeCoinsTableModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectCoinForChat?: (symbol: string, item: RangeCoinScanItem) => void;
 }
-
-const INTERVALS = [
-  { id: '15m', label: '15 دقيقة' },
-  { id: '1h', label: '1 ساعة' },
-  { id: '4h', label: '4 ساعات' },
-];
 
 export function RangeCoinsTableModal({
   isOpen,
@@ -48,6 +47,55 @@ export function RangeCoinsTableModal({
   const [filterMode, setFilterMode] = useState<'all' | 'viable_only' | 'unviable'>('all');
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [isCached, setIsCached] = useState<boolean>(false);
+
+  // Window Management States
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = React.useRef({ startX: 0, startY: 0, posX: 0, posY: 0 });
+
+  // Handle Dragging
+  const handleStartDrag = (e: React.MouseEvent | React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button, input, select, a, textarea')) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    setIsDragging(true);
+    dragStartRef.current = {
+      startX: clientX,
+      startY: clientY,
+      posX: position.x,
+      posY: position.y,
+    };
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      const deltaX = clientX - dragStartRef.current.startX;
+      const deltaY = clientY - dragStartRef.current.startY;
+      setPosition({
+        x: dragStartRef.current.posX + deltaX,
+        y: dragStartRef.current.posY + deltaY,
+      });
+    };
+    const handleEnd = () => setIsDragging(false);
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+    window.addEventListener('touchmove', handleMove);
+    window.addEventListener('touchend', handleEnd);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleEnd);
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('touchend', handleEnd);
+    };
+  }, [isDragging]);
 
   const fetchRangeData = useCallback(async (forceRefresh = false) => {
     setIsLoading(true);
@@ -109,68 +157,153 @@ export function RangeCoinsTableModal({
 
   if (!isOpen) return null;
 
+  // Minimized Floating Bar
+  if (isMinimized) {
+    return (
+      <div
+        className={`fixed bottom-4 left-4 z-60 p-2.5 rounded-xl border shadow-2xl flex items-center gap-3 transition-all ${
+          isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-slate-100'
+        }`}
+      >
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => setIsMinimized(false)}>
+          <Layers className="w-4 h-4 text-emerald-400" />
+          <span className="text-xs font-bold">مهارة العملات العرضية ({interval})</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setIsMinimized(false)}
+            title="استعادة النافذة"
+            className="p-1 rounded-lg hover:bg-slate-700/30 text-emerald-400"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            title="إغلاق والعودة"
+            className="p-1 rounded-lg hover:bg-slate-700/30 text-slate-400 hover:text-rose-400"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-60 flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-md overflow-hidden">
       <div
-        className={`theme-modal-dialog w-full max-w-5xl max-h-[90dvh] flex flex-col rounded-2xl shadow-2xl border overflow-hidden transition-colors ${
+        style={{
+          transform: isMaximized ? 'none' : `translate(${position.x}px, ${position.y}px)`,
+        }}
+        className={`theme-modal-dialog flex flex-col shadow-2xl border transition-all ${
           isLight
             ? 'bg-white border-slate-200 text-slate-900'
             : 'bg-slate-900 border-slate-800 text-slate-100'
+        } ${
+          isMaximized
+            ? 'fixed inset-0 w-full h-full max-w-none max-h-none rounded-none'
+            : 'w-full max-w-5xl max-h-[90dvh] rounded-2xl overflow-hidden'
         }`}
       >
-        {/* Header Bar */}
+        {/* Header Bar with Drag & Window Controls */}
         <div
-          className={`theme-modal-header p-4 border-b flex items-center justify-between shrink-0 ${
+          onMouseDown={handleStartDrag}
+          onTouchStart={handleStartDrag}
+          className={`theme-modal-header p-3 sm:p-4 border-b flex items-center justify-between shrink-0 select-none cursor-move ${
             isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-slate-800'
           }`}
         >
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
+            {/* Back Button (العودة إلى المساعد) */}
+            <button
+              type="button"
+              onClick={onClose}
+              title="العودة إلى المساعد"
+              className={`p-2 rounded-xl border transition-colors flex items-center gap-1 text-xs font-semibold cursor-pointer ${
+                isLight
+                  ? 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'
+                  : 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-200'
+              }`}
+            >
+              <ArrowRight className="w-4 h-4 text-emerald-400" />
+              <span className="hidden sm:inline">العودة للمساعد</span>
+            </button>
+
             <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center border ${
+              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center border ${
                 isLight
                   ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
                   : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
               }`}
             >
-              <Layers className="w-5 h-5" />
+              <Layers className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="theme-heading text-base font-bold">العملات العرضية وتقييم الجدوى</h3>
+                <h3 className="theme-heading text-sm sm:text-base font-bold">مهارة العملات العرضية وتقييم الجدوى</h3>
                 <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  محرك المرحلة 2 (تجمع سعري)
+                  فحص حي
                 </span>
               </div>
-              <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+              <p className={`text-[11px] hidden sm:block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                 فرز ومقارنة العملات المتذبذبة في مسار أفقي مع خصم الرسوم والانزلاق السعري
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            {/* Refresh */}
             <button
               type="button"
               onClick={() => fetchRangeData(true)}
               disabled={isLoading}
               title="تحديث البيانات"
-              className={`p-2 rounded-xl border transition-colors flex items-center gap-1.5 text-xs font-medium cursor-pointer ${
+              className={`p-1.5 sm:p-2 rounded-xl border transition-colors flex items-center gap-1.5 text-xs font-medium cursor-pointer ${
                 isLight
                   ? 'bg-white border-slate-200 hover:bg-slate-100 text-slate-700'
                   : 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-200'
               } disabled:opacity-50`}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">تحديث</span>
+              <span className="hidden md:inline">تحديث</span>
             </button>
+
+            {/* Minimize */}
             <button
               type="button"
-              onClick={onClose}
-              title="إغلاق"
-              className={`p-2 rounded-xl transition-colors cursor-pointer ${
+              onClick={() => setIsMinimized(true)}
+              title="تصغير النافذة"
+              className={`p-1.5 sm:p-2 rounded-xl transition-colors cursor-pointer ${
                 isLight ? 'hover:bg-slate-200 text-slate-500' : 'hover:bg-slate-800 text-slate-400'
               }`}
             >
-              <X className="w-5 h-5" />
+              <Minus className="w-4 h-4" />
+            </button>
+
+            {/* Maximize / Restore */}
+            <button
+              type="button"
+              onClick={() => setIsMaximized(!isMaximized)}
+              title={isMaximized ? 'استعادة الحجم الأصلي' : 'تكبير النافذة'}
+              className={`p-1.5 sm:p-2 rounded-xl transition-colors cursor-pointer ${
+                isLight ? 'hover:bg-slate-200 text-slate-500' : 'hover:bg-slate-800 text-slate-400'
+              }`}
+            >
+              {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+
+            {/* Close */}
+            <button
+              type="button"
+              onClick={onClose}
+              title="إغلاق والعودة"
+              className={`p-1.5 sm:p-2 rounded-xl transition-colors cursor-pointer ${
+                isLight ? 'hover:bg-slate-200 text-slate-500' : 'hover:bg-slate-800 text-slate-400'
+              }`}
+            >
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
@@ -181,9 +314,9 @@ export function RangeCoinsTableModal({
             isLight ? 'bg-slate-100/60 border-slate-200' : 'bg-slate-950/40 border-slate-800'
           }`}
         >
-          {/* Timeframe selector */}
-          <div className="flex items-center gap-1 bg-black/5 dark:bg-white/5 p-1 rounded-xl">
-            {INTERVALS.map((int) => (
+          {/* Timeframe selector (Unified List) */}
+          <div className="flex items-center gap-1 bg-black/5 dark:bg-white/5 p-1 rounded-xl overflow-x-auto max-w-full">
+            {UNIFIED_ASSISTANT_TIMEFRAMES.map((int) => (
               <button
                 key={int.id}
                 type="button"

@@ -8,6 +8,12 @@ interface ChatRequestPayload {
   customApiKey?: string;
   marketContext?: any;
   newsContext?: any[];
+  skillsContext?: Array<{
+    id: string;
+    name: string;
+    isEnabled: boolean;
+    instructions: string;
+  }>;
   attachments?: Array<{
     id: string;
     type: 'image' | 'file' | 'text' | 'link';
@@ -26,12 +32,13 @@ const SYSTEM_INSTRUCTION = `أنت المساعد الذكي المستقل لت
 2. دقة الأرقام: اعتمد كليًا على بيانات السوق الحية المرفقة في سياق الحديث (الأسعار الحالية، المتوسطات EMA، مؤشر RSI، ومستويات الدعم والمقاومة). لا تخترع أسعارًا أو مستويات وهمية.
 3. التوثيق: اذكر دائمًا وقت التحديث والمصدر (مثل Binance Spot Live API) عند تقديم تحليل رقمي.
 4. الأخبار: عند الإشارة إلى الأخبار المرفقة، اذكر اسم المصدر وتاريخ النشر والرابط إن وُجد.
-5. الأسلوب: تحدث باللغة العربية الفصحى بأسلوب مهني، مباشر، مرتب، وواضح باستخدام التنسيق (نقاط، خط عريض، جداول مختصرة).`;
+5. المهارات المتاحة: لا تدعِ وجود أي مهارات إضافية غير المنفذة فعليًا في النظام. إذا استفسر المستخدم عن مهارة متوقفة (مثل العملات العرضية وهي غير مفعّلة)، وضّح له أن المهارة متوقفة حاليًا ويمكنه تشغيلها من قسم «المهارات».
+6. الأسلوب: تحدث باللغة العربية الفصحى بأسلوب مهني، مباشر، مرتب، وواضح باستخدام التنسيق (نقاط، خط عريض، جداول مختصرة).`;
 
 export async function POST(req: NextRequest) {
   try {
     const body: ChatRequestPayload = await req.json();
-    const { messages, provider = 'gemini', model, customApiKey, marketContext, newsContext, attachments } = body;
+    const { messages, provider = 'gemini', model, customApiKey, marketContext, newsContext, skillsContext, attachments } = body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: 'قائمة الرسائل فارغة' }, { status: 400 });
@@ -39,6 +46,17 @@ export async function POST(req: NextRequest) {
 
     // Build context augmentations
     let contextPrompt = '';
+
+    // Process Skills Context (ONLY for enabled skills)
+    if (skillsContext && Array.isArray(skillsContext)) {
+      const activeSkills = skillsContext.filter((s) => s.isEnabled);
+      if (activeSkills.length > 0) {
+        contextPrompt += `\n[المهارات التحليلية المفعّلة حالياً في النظام]:\n`;
+        activeSkills.forEach((skill) => {
+          contextPrompt += `- ${skill.name}:\n${skill.instructions}\n`;
+        });
+      }
+    }
     if (marketContext) {
       contextPrompt += `\n[بيانات السوق الفنية الحية المحدثة للعملة ${marketContext.symbol} بإطار ${marketContext.interval}]:
 - السعر الحالي: ${marketContext.lastPrice} USDT

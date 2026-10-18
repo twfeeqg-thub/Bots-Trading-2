@@ -117,14 +117,46 @@ export async function GET(req: NextRequest) {
   const lows = klines.map((k) => k.low);
   const volumes = klines.map((k) => k.volume);
 
-  const lastCandle = klines[klines.length - 1];
-  const lastPrice = lastCandle.close;
+  // Fetch true 24hr ticker data from Binance API (independent of klines interval)
+  let ticker24h: { high24h: number; low24h: number; change24h: number; volume24h: number } | null = null;
+  for (const host of BINANCE_HOSTS) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(`${host}/api/v3/ticker/24hr?symbol=${symbol}`, {
+        signal: controller.signal,
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; CryptoAnalysisAssistant/1.0)',
+        },
+      });
+      clearTimeout(timeoutId);
 
-  // 24-period or recent window high & low
-  const recentHigh = Math.max(...highs.slice(-24));
-  const recentLow = Math.min(...lows.slice(-24));
-  const firstClose = closes[0];
-  const changePercent = Number((((lastPrice - firstClose) / firstClose) * 100).toFixed(2));
+      if (res.ok) {
+        const rawTicker = await res.json();
+        ticker24h = {
+          high24h: parseFloat(rawTicker.highPrice),
+          low24h: parseFloat(rawTicker.lowPrice),
+          change24h: parseFloat(rawTicker.priceChangePercent),
+          volume24h: parseFloat(rawTicker.volume),
+        };
+        break;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  // Fallback if 24hr ticker endpoint is unavailable: calculate true 24h window by timestamp
+  const nowMs = Date.now();
+  const past24hMs = nowMs - 24 * 60 * 60 * 1000;
+  const true24hKlines = klines.filter((k) => k.closeTime >= past24hMs || k.openTime >= past24hMs);
+  const active24hList = true24hKlines.length > 0 ? true24hKlines : klines;
+
+  const high24h = ticker24h?.high24h ?? Math.max(...active24hList.map((k) => k.high));
+  const low24h = ticker24h?.low24h ?? Math.min(...active24hList.map((k) => k.low));
+  const volume24h = ticker24h?.volume24h ?? active24hList.reduce((acc, k) => acc + k.volume, 0);
+  const change24h = ticker24h?.change24h ?? Number((((lastPrice - active24hList[0].open) / active24hList[0].open) * 100).toFixed(2));
 
   // Indicators
   const rsi = calculateRSI(closes, 14);
@@ -166,10 +198,10 @@ export async function GET(req: NextRequest) {
     symbol,
     interval,
     lastPrice: Number(lastPrice.toFixed(4)),
-    high24h: Number(recentHigh.toFixed(4)),
-    low24h: Number(recentLow.toFixed(4)),
-    change24h: changePercent,
-    volume24h: Number(volumes.slice(-24).reduce((a, b) => a + b, 0).toFixed(2)),
+    high24h: Number(high24h.toFixed(4)),
+    low24h: Number(low24h.toFixed(4)),
+    change24h: Number(change24h.toFixed(2)),
+    volume24h: Number(volume24h.toFixed(2)),
     rsi,
     ema9: Number(ema9.toFixed(4)),
     ema20: Number(ema20.toFixed(4)),

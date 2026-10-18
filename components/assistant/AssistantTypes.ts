@@ -196,4 +196,39 @@ export interface AssistantUserSettings {
   dynamicModels?: Partial<Record<AIProvider, ProviderModelConfig[]>>;
   // User entered custom model id (if any)
   customModelInput?: string;
+  // Skills list with ON/OFF status
+  skills?: AssistantSkill[];
 }
+
+export const UNIFIED_ASSISTANT_TIMEFRAMES = [
+  { id: '3m', label: '3 دقائق' },
+  { id: '15m', label: '15 دقيقة' },
+  { id: '30m', label: '30 دقيقة' },
+  { id: '1h', label: '1 ساعة' },
+  { id: '4h', label: '4 ساعات' },
+  { id: '1d', label: '1 يوم' },
+  { id: '1w', label: '1 أسبوع' },
+] as const;
+
+export interface AssistantSkill {
+  id: string;
+  name: string;
+  description: string;
+  isEnabled: boolean; // ON or OFF
+  instructions: string;
+  category: string;
+  triggerKeywords: string[];
+}
+
+export const DEFAULT_ASSISTANT_SKILLS: AssistantSkill[] = [
+  {
+    id: 'range_coins_scanner',
+    name: 'مهارة كشف وتقييم العملات العرضية',
+    description: 'فحص أزواج العملات في السوق لكشف النطاقات العرضية المتماسكة، وحساب الهامش الصافي القابل للتحقيق، ونقاط الدعم والمقاومة، وتصنيف الجدوى بدقة.',
+    isEnabled: true,
+    instructions: `[مهارة العملات العرضية مفعلة]:
+عندما يستفسر المستخدم عن العملات العرضية، أو النطاقات السعرية، أو القنوات الأفقية، اعتمد حصرياً على منطق فحص النطاقات الحية وحساب الهامش الصافي القابل للتحقيق بعد خصم الرسوم والانزلاق، وتحديد مستويات الدعم والمقاومة. لا تفترض صفقات ولا تنفذ أوامر، بل قدم التحليل الفني للنطاق بأرقام واضحة ومباشرة.`,
+    category: 'تحليل النطاقات السعرية',
+    triggerKeywords: ['عرضي', 'عرضية', 'نطاق', 'نطاقات', 'range', 'تذبذب عرضي', 'قناة أفقية', 'قنوات سعرية', 'sideways'],
+  },
+];

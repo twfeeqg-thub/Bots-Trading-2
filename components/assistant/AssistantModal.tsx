@@ -7,6 +7,7 @@ import {
   Sparkles,
   Maximize2,
   Minimize2,
+  Minus,
   Settings,
   Trash2,
   TrendingUp,
@@ -19,6 +20,7 @@ import {
   Bot,
   User,
   ArrowUpRight,
+  ArrowRight,
   Layers,
   Clock,
   Compass,
@@ -31,7 +33,15 @@ import {
   FileUp,
   Plus,
   Loader2,
-  Check
+  Check,
+  Copy,
+  Camera,
+  Download,
+  Search,
+  Scissors,
+  CheckCircle2,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react';
 import { useTheme } from '@/components/theme/ThemeContext';
 import {
@@ -42,11 +52,15 @@ import {
   AssistantUserSettings,
   PROVIDERS_CONFIG,
   ChatAttachment,
-  AttachmentType
+  AttachmentType,
+  UNIFIED_ASSISTANT_TIMEFRAMES,
+  AssistantSkill,
+  DEFAULT_ASSISTANT_SKILLS
 } from './AssistantTypes';
 import { AssistantSettingsModal } from './AssistantSettingsModal';
 import { RangeCoinsTableModal } from './RangeCoinsTableModal';
 import { RangeCoinScanItem } from '@/app/api/assistant/range-analysis/route';
+import { DEFAULT_EXECUTABLE_UNIVERSE } from '@/lib/scanner/universe';
 
 interface AssistantModalProps {
   isOpen: boolean;
@@ -60,15 +74,7 @@ const DEFAULT_SETTINGS: AssistantUserSettings = {
   apiKeys: {},
 };
 
-const POPULAR_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT'];
-const TIMEFRAMES = [
-  { id: '1m', label: '1 دقيقة' },
-  { id: '5m', label: '5 دقائق' },
-  { id: '15m', label: '15 دقيقة' },
-  { id: '1h', label: '1 ساعة' },
-  { id: '4h', label: '4 ساعات' },
-  { id: '1d', label: '1 يوم' },
-];
+const POPULAR_SYMBOLS = DEFAULT_EXECUTABLE_UNIVERSE.slice(0, 12).map((u) => u.symbol);
 
 export function AssistantModal({
   isOpen,
@@ -77,12 +83,27 @@ export function AssistantModal({
 }: AssistantModalProps) {
   const { isLight } = useTheme();
 
-  // Modal dimensions state
+  // Navigation tab: 'chat' | 'skills'
+  const [activeTab, setActiveTab] = useState<'chat' | 'skills'>('chat');
+
+  // Skills state (with ON/OFF toggle)
+  const [skills, setSkills] = useState<AssistantSkill[]>(DEFAULT_ASSISTANT_SKILLS);
+
+  // Window Management States
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
+  const [isMinimized, setIsMinimized] = useState<boolean>(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef({ startX: 0, startY: 0, posX: 0, posY: 0 });
+
+  // Submodals
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isRangeTableOpen, setIsRangeTableOpen] = useState<boolean>(false);
 
-  // In-Memory settings state (keys are never persisted in localStorage)
+  // Feedback Notification
+  const [copiedNotice, setCopiedNotice] = useState<string | null>(null);
+
+  // In-Memory settings state
   const [settings, setSettings] = useState<AssistantUserSettings>(DEFAULT_SETTINGS);
 
   // Quick Action controls
@@ -91,6 +112,8 @@ export function AssistantModal({
     currentChartSymbol ? currentChartSymbol.toUpperCase() : 'BTCUSDT'
   );
   const [selectedInterval, setSelectedInterval] = useState<string>('1h');
+  const [isSymbolDropdownOpen, setIsSymbolDropdownOpen] = useState(false);
+  const [symbolSearchQuery, setSymbolSearchQuery] = useState('');
 
   if (currentChartSymbol !== prevChartSymbol) {
     setPrevChartSymbol(currentChartSymbol);
@@ -98,6 +121,219 @@ export function AssistantModal({
       setSelectedSymbol(currentChartSymbol.toUpperCase());
     }
   }
+
+  // Handle Dragging Window (Mouse + Touch)
+  const handleStartDrag = (e: React.MouseEvent | React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button, input, select, textarea, a')) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    setIsDragging(true);
+    dragStartRef.current = {
+      startX: clientX,
+      startY: clientY,
+      posX: position.x,
+      posY: position.y,
+    };
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      const deltaX = clientX - dragStartRef.current.startX;
+      const deltaY = clientY - dragStartRef.current.startY;
+      setPosition({
+        x: dragStartRef.current.posX + deltaX,
+        y: dragStartRef.current.posY + deltaY,
+      });
+    };
+    const handleEnd = () => setIsDragging(false);
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+    window.addEventListener('touchmove', handleMove);
+    window.addEventListener('touchend', handleEnd);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleEnd);
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('touchend', handleEnd);
+    };
+  }, [isDragging]);
+
+  // Skill Toggle Handler (ON / OFF)
+  const handleToggleSkill = (skillId: string) => {
+    setSkills((prev) =>
+      prev.map((s) => (s.id === skillId ? { ...s, isEnabled: !s.isEnabled } : s))
+    );
+  };
+
+  // Response Tools: Copy Full Text
+  const handleCopyFullText = (content: string) => {
+    navigator.clipboard.writeText(content);
+    setCopiedNotice('تم نسخ كامل الرد بنجاح!');
+    setTimeout(() => setCopiedNotice(null), 2500);
+  };
+
+  // Response Tools: Copy Selected Text
+  const handleCopySelectedText = (fallbackContent: string) => {
+    const selection = window.getSelection()?.toString().trim();
+    if (selection) {
+      navigator.clipboard.writeText(selection);
+      setCopiedNotice('تم نسخ الجزء المحدد بنجاح!');
+    } else {
+      navigator.clipboard.writeText(fallbackContent);
+      setCopiedNotice('لم يتم تحديد نص، تم نسخ كامل الرد!');
+    }
+    setTimeout(() => setCopiedNotice(null), 2500);
+  };
+
+  // Response Tools: Capture Image
+  const handleCaptureMessageImage = (msg: ChatMessage) => {
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const width = 640;
+      const padding = 28;
+      const scale = 2; // High-DPI Retina
+      const text = msg.content;
+      const lines: string[] = [];
+      const paragraphs = text.split('\n');
+
+      ctx.font = '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Arabic", sans-serif';
+      const maxTextWidth = width - padding * 2;
+
+      paragraphs.forEach((p) => {
+        if (!p.trim()) {
+          lines.push('');
+          return;
+        }
+        const words = p.split(' ');
+        let currentLine = '';
+        for (const w of words) {
+          const testLine = currentLine ? `${currentLine} ${w}` : w;
+          if (ctx.measureText(testLine).width > maxTextWidth) {
+            lines.push(currentLine);
+            currentLine = w;
+          } else {
+            currentLine = testLine;
+          }
+        }
+        if (currentLine) lines.push(currentLine);
+      });
+
+      const lineHeight = 24;
+      const headerHeight = 72;
+      const techHeight = msg.metadata?.technicalAnalysis ? 130 : 0;
+      const footerHeight = 44;
+      const totalHeight = headerHeight + lines.length * lineHeight + techHeight + footerHeight + padding;
+
+      canvas.width = width * scale;
+      canvas.height = totalHeight * scale;
+      ctx.scale(scale, scale);
+
+      const isDark = !isLight;
+      const bgGradient = ctx.createLinearGradient(0, 0, 0, totalHeight);
+      if (isDark) {
+        bgGradient.addColorStop(0, '#090d16');
+        bgGradient.addColorStop(1, '#0f172a');
+      } else {
+        bgGradient.addColorStop(0, '#f8fafc');
+        bgGradient.addColorStop(1, '#f1f5f9');
+      }
+      ctx.fillStyle = bgGradient;
+      ctx.fillRect(0, 0, width, totalHeight);
+
+      // Border & Top Accent Line
+      ctx.strokeStyle = isDark ? '#1e293b' : '#cbd5e1';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(1, 1, width - 2, totalHeight - 2);
+
+      ctx.fillStyle = '#10b981';
+      ctx.fillRect(0, 0, width, 4);
+
+      // Header Title & Meta (RTL Arabic)
+      ctx.fillStyle = '#10b981';
+      ctx.font = 'bold 15px "Noto Sans Arabic", -apple-system, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('المساعد الذكي للتحليل — مشروع Q', width - padding, 36);
+
+      ctx.fillStyle = isDark ? '#94a3b8' : '#64748b';
+      ctx.font = '11px "Noto Sans Arabic", sans-serif';
+      const timeStr = new Date(msg.timestamp).toLocaleString('ar-SA');
+      ctx.fillText(`التاريخ: ${timeStr} | المزود: ${msg.provider || 'AI Studio'}`, width - padding, 54);
+
+      // Divider
+      ctx.strokeStyle = isDark ? '#1e293b' : '#e2e8f0';
+      ctx.beginPath();
+      ctx.moveTo(padding, headerHeight);
+      ctx.lineTo(width - padding, headerHeight);
+      ctx.stroke();
+
+      // Body Text Lines (RTL)
+      let y = headerHeight + 28;
+      ctx.font = '13.5px "Noto Sans Arabic", -apple-system, sans-serif';
+      ctx.textAlign = 'right';
+
+      lines.forEach((line) => {
+        if (line.trim().startsWith('>')) {
+          ctx.fillStyle = '#10b981';
+        } else if (line.trim().startsWith('#') || line.trim().startsWith('**')) {
+          ctx.fillStyle = isDark ? '#38bdf8' : '#0284c7';
+        } else {
+          ctx.fillStyle = isDark ? '#f1f5f9' : '#0f172a';
+        }
+        ctx.fillText(line.replace(/[*#>`]/g, ''), width - padding, y);
+        y += lineHeight;
+      });
+
+      // Technical Analysis Card if available
+      if (msg.metadata?.technicalAnalysis) {
+        y += 8;
+        const ta = msg.metadata.technicalAnalysis;
+        ctx.fillStyle = isDark ? '#131d2e' : '#e2e8f0';
+        ctx.fillRect(padding, y, width - padding * 2, 105);
+        ctx.strokeStyle = isDark ? '#223249' : '#cbd5e1';
+        ctx.strokeRect(padding, y, width - padding * 2, 105);
+
+        ctx.fillStyle = '#10b981';
+        ctx.font = 'bold 12px "Noto Sans Arabic", sans-serif';
+        ctx.fillText(`بيانات فنية حية: ${ta.symbol} (${ta.interval})`, width - padding - 12, y + 24);
+
+        ctx.fillStyle = isDark ? '#e2e8f0' : '#1e293b';
+        ctx.font = '11px monospace, "Noto Sans Arabic", sans-serif';
+        ctx.fillText(`السعر: ${ta.lastPrice} USDT | الاتجاه: ${ta.trend} | 24h: ${ta.change24h}%`, width - padding - 12, y + 46);
+        ctx.fillText(`RSI(14): ${ta.rsi} (${ta.rsiCondition}) | حجم 24h: ${ta.volume24h}`, width - padding - 12, y + 68);
+        ctx.fillText(`الدعم: ${ta.supportLevels.join(', ')} | المقاومة: ${ta.resistanceLevels.join(', ')}`, width - padding - 12, y + 90);
+        y += 115;
+      }
+
+      // Footer
+      y = totalHeight - 16;
+      ctx.fillStyle = isDark ? '#64748b' : '#94a3b8';
+      ctx.font = '10px "Noto Sans Arabic", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('هذا الرد صادر عن المساعد الذكي للأغراض الاستشارية والتحليلية الفنية فقط ولا يمثل نصيحة مالية أو أمر تداول.', width / 2, y);
+
+      // Download PNG
+      const dataUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `رد_المساعد_الذكي_${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setCopiedNotice('تم حفظ صورة الرد بنجاح!');
+      setTimeout(() => setCopiedNotice(null), 2500);
+    } catch (err) {
+      console.error('Failed to capture response image', err);
+    }
+  };
 
   // Chat conversation state
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -332,6 +568,7 @@ export function AssistantModal({
           customApiKey: activeKey,
           marketContext: contextData?.market,
           newsContext: contextData?.news,
+          skillsContext: skills.filter((s) => s.isEnabled),
           attachments: currentAttachments,
         }),
       });
@@ -565,6 +802,52 @@ export function AssistantModal({
     });
   };
 
+  // Minimized Floating Bar
+  if (isMinimized) {
+    return (
+      <div
+        className={`fixed bottom-4 right-4 z-50 p-2.5 rounded-2xl border shadow-2xl flex items-center gap-3 transition-all ${
+          isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-slate-100'
+        }`}
+      >
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => setIsMinimized(false)}>
+          <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+            <Bot className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="text-xs font-bold block">المساعد الذكي للتحليل</span>
+            <span className="text-[10px] text-emerald-400">نشط ({messages.length} رسالة)</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setIsMinimized(false)}
+            title="استعادة النافذة"
+            className="p-1.5 rounded-lg hover:bg-slate-700/30 text-emerald-400 cursor-pointer"
+          >
+            <Maximize2 className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            title="إغلاق"
+            className="p-1.5 rounded-lg hover:bg-slate-700/30 text-slate-400 hover:text-rose-400 cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Filter symbols for searchable combobox
+  const filteredSymbols = DEFAULT_EXECUTABLE_UNIVERSE.filter((u) =>
+    u.symbol.toLowerCase().includes(symbolSearchQuery.toLowerCase())
+  ).slice(0, 8);
+
+  const isValidSymbol = selectedSymbol.endsWith('USDT') && selectedSymbol.length >= 5;
+
   return (
     <>
       {/* Backdrop for Mobile */}
@@ -573,8 +856,19 @@ export function AssistantModal({
         onClick={onClose}
       />
 
+      {/* Feedback Toast */}
+      {copiedNotice && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-60 px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold text-xs shadow-2xl flex items-center gap-2 animate-in fade-in duration-150">
+          <Check className="w-4 h-4" />
+          <span>{copiedNotice}</span>
+        </div>
+      )}
+
       {/* Main Assistant Panel / Drawer */}
       <div
+        style={{
+          transform: isExpanded ? 'none' : `translate(${position.x}px, ${position.y}px)`,
+        }}
         className={`theme-modal-dialog fixed z-50 transition-all duration-300 flex flex-col shadow-2xl border ${
           isLight
             ? 'bg-white border-slate-200 text-slate-900'
@@ -585,24 +879,46 @@ export function AssistantModal({
         } ${
           // Desktop sizing: normal vs expanded
           isExpanded
-            ? 'md:w-[720px] md:h-[85vh] h-[90dvh]'
-            : 'md:w-[440px] md:h-[700px] h-[82dvh]'
+            ? 'md:w-[780px] md:h-[88vh] h-[92dvh]'
+            : 'md:w-[460px] md:h-[720px] h-[84dvh]'
         }`}
       >
-        {/* Header Bar */}
-        <div className={`theme-modal-header p-3.5 border-b flex items-center justify-between shrink-0 select-none ${
-          isLight ? 'border-slate-200 bg-slate-50/90' : 'border-slate-800 bg-slate-950/80'
-        }`}>
-          <div className="flex items-center gap-2.5">
+        {/* Header Bar with Drag, Back & Window Controls */}
+        <div
+          onMouseDown={handleStartDrag}
+          onTouchStart={handleStartDrag}
+          className={`theme-modal-header p-3 sm:p-3.5 border-b flex items-center justify-between shrink-0 select-none cursor-move ${
+            isLight ? 'border-slate-200 bg-slate-50/90' : 'border-slate-800 bg-slate-950/80'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {/* Back Button (العودة إلى السابق) */}
+            <button
+              type="button"
+              onClick={() => {
+                if (activeTab === 'skills') setActiveTab('chat');
+                else onClose();
+              }}
+              title={activeTab === 'skills' ? 'العودة إلى المحادثة' : 'العودة / إغلاق'}
+              className={`p-1.5 rounded-lg border transition-colors flex items-center gap-1 text-xs font-semibold cursor-pointer ${
+                isLight
+                  ? 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'
+                  : 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-200'
+              }`}
+            >
+              <ArrowRight className="w-4 h-4 text-emerald-400" />
+              <span className="text-[10px] hidden sm:inline">{activeTab === 'skills' ? 'المحادثة' : 'عودة'}</span>
+            </button>
+
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center border ${
               isLight ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
             }`}>
               <Bot className="w-4 h-4" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="theme-heading text-sm font-bold tracking-tight">المساعد الذكي للتحليل</h2>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-medium border border-emerald-500/30">
+              <div className="flex items-center gap-1.5">
+                <h2 className="theme-heading text-xs sm:text-sm font-bold tracking-tight">المساعد الذكي للتحليل</h2>
+                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400 font-medium border border-emerald-500/30">
                   مستقل
                 </span>
               </div>
@@ -625,19 +941,31 @@ export function AssistantModal({
               type="button"
               onClick={handleClearChat}
               title="مسح المحادثة"
-              className={`p-1.5 rounded-lg transition-colors ${
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                 isLight ? 'hover:bg-slate-200 text-slate-500' : 'hover:bg-slate-800 text-slate-400'
               }`}
             >
               <Trash2 className="w-4 h-4" />
             </button>
 
+            {/* Minimize */}
+            <button
+              type="button"
+              onClick={() => setIsMinimized(true)}
+              title="تصغير النافذة"
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                isLight ? 'hover:bg-slate-200 text-slate-500' : 'hover:bg-slate-800 text-slate-400'
+              }`}
+            >
+              <Minus className="w-4 h-4" />
+            </button>
+
             {/* Expand / Minimize Desktop */}
             <button
               type="button"
               onClick={() => setIsExpanded(!isExpanded)}
-              title={isExpanded ? 'تصغير اللوحة' : 'توسيع اللوحة'}
-              className={`hidden md:block p-1.5 rounded-lg transition-colors ${
+              title={isExpanded ? 'استعادة الحجم الأصلي' : 'توسيع اللوحة'}
+              className={`hidden md:block p-1.5 rounded-lg transition-colors cursor-pointer ${
                 isLight ? 'hover:bg-slate-200 text-slate-500' : 'hover:bg-slate-800 text-slate-400'
               }`}
             >
@@ -649,7 +977,7 @@ export function AssistantModal({
               type="button"
               onClick={() => setIsSettingsOpen(true)}
               title="إعدادات المزود ومفاتيح API"
-              className={`p-1.5 rounded-lg transition-colors ${
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                 isLight ? 'hover:bg-slate-200 text-slate-500' : 'hover:bg-slate-800 text-slate-400'
               }`}
             >
@@ -661,7 +989,7 @@ export function AssistantModal({
               type="button"
               onClick={onClose}
               title="إغلاق"
-              className={`p-1.5 rounded-lg transition-colors ${
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                 isLight ? 'hover:bg-slate-200 text-slate-500' : 'hover:bg-slate-800 text-slate-400'
               }`}
             >
@@ -670,76 +998,283 @@ export function AssistantModal({
           </div>
         </div>
 
-        {/* Quick-Action Bar for Technical Analysis & News */}
-        <div className={`p-2.5 border-b text-xs flex flex-wrap items-center justify-between gap-2 shrink-0 ${
-          isLight ? 'bg-slate-100/70 border-slate-200' : 'bg-slate-950/40 border-slate-800/80'
+        {/* Section Navigation Tabs (المحادثة والاستشارة | قسم المهارات) */}
+        <div className={`flex items-center border-b px-2 text-xs font-medium shrink-0 ${
+          isLight ? 'bg-slate-50/70 border-slate-200' : 'bg-slate-950/60 border-slate-800'
         }`}>
-          {/* Symbol & Timeframe Selector */}
-          <div className="flex items-center gap-1.5 flex-1 min-w-0 flex-wrap sm:flex-nowrap">
-            <input
-              type="text"
-              value={selectedSymbol}
-              onChange={(e) => setSelectedSymbol(e.target.value.toUpperCase())}
-              placeholder="الرمز مثلا BTCUSDT"
-              className={`w-24 sm:w-28 px-2 py-1 rounded-lg border font-mono text-xs uppercase focus:outline-hidden ${
-                isLight ? 'bg-white border-slate-300' : 'bg-slate-900 border-slate-700'
-              }`}
-            />
-            <select
-              value={selectedInterval}
-              onChange={(e) => setSelectedInterval(e.target.value)}
-              className={`px-2 py-1 rounded-lg border text-xs focus:outline-hidden ${
-                isLight ? 'bg-white border-slate-300' : 'bg-slate-900 border-slate-700'
-              }`}
-            >
-              {TIMEFRAMES.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => handleRunTechnicalAnalysis()}
-              disabled={isAnalyzing}
-              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium flex items-center gap-1 text-[11px] transition-colors"
-            >
-              <Activity className={`w-3 h-3 ${isAnalyzing ? 'animate-spin' : ''}`} />
-              <span>{isAnalyzing ? 'جاري التحليل...' : 'تحليل فني فوري'}</span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            {/* Range Coins Analysis Trigger */}
-            <button
-              type="button"
-              onClick={() => setIsRangeTableOpen(true)}
-              className={`px-2.5 py-1 rounded-lg border font-semibold flex items-center gap-1.5 text-[11px] transition-colors cursor-pointer ${
-                isLight
-                  ? 'bg-emerald-50 border-emerald-300 hover:bg-emerald-100 text-emerald-800 shadow-2xs'
-                  : 'bg-emerald-500/15 border-emerald-500/30 hover:bg-emerald-500/25 text-emerald-300 shadow-2xs'
-              }`}
-            >
-              <Layers className="w-3.5 h-3.5 text-emerald-400" />
-              <span>العملات العرضية</span>
-            </button>
-
-            {/* Quick News Trigger */}
-            <button
-              type="button"
-              onClick={handleFetchCryptoNews}
-              disabled={isFetchingNews}
-              className={`px-2.5 py-1 rounded-lg border font-medium flex items-center gap-1 text-[11px] transition-colors ${
-                isLight
-                  ? 'bg-white border-slate-300 hover:bg-slate-50 text-slate-700'
-                  : 'bg-slate-900 border-slate-700 hover:bg-slate-800 text-slate-200'
-              }`}
-            >
-              <Globe className={`w-3 h-3 text-sky-400 ${isFetchingNews ? 'animate-spin' : ''}`} />
-              <span>{isFetchingNews ? 'جلب الأخبار...' : 'أحدث الأخبار'}</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab('chat')}
+            className={`py-2 px-3 border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer ${
+              activeTab === 'chat'
+                ? 'border-emerald-500 text-emerald-500 font-bold'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Bot className="w-3.5 h-3.5" />
+            <span>المحادثة والاستشارة</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('skills')}
+            className={`py-2 px-3 border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer ${
+              activeTab === 'skills'
+                ? 'border-emerald-500 text-emerald-500 font-bold'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5 text-emerald-400" />
+            <span>قسم المهارات</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400 font-mono">
+              {skills.filter((s) => s.isEnabled).length} نشطة
+            </span>
+          </button>
         </div>
+
+        {/* TAB 1: SKILLS SECTION */}
+        {activeTab === 'skills' && (
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* Skills Header Banner */}
+            <div className={`p-3.5 rounded-xl border ${
+              isLight ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950' : 'bg-emerald-950/30 border-emerald-500/30 text-emerald-200'
+            }`}>
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <Layers className="w-4 h-4 text-emerald-400" />
+                <span>نظام المهارات التحليلية للمساعد (Skills System)</span>
+              </div>
+              <p className={`text-xs mt-1.5 leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                تتيح لك المهارات تفعيل أو إيقاف قدرات التحليل المتخصصة. عند تفعيل المهارة (ON)، يقوم المساعد باختيارها تلقائيًا للإجابة عن أسئلتك، كما يمكنك تشغيل فحص المهارة يدويًا بنقرة واحدة دون الحاجة إلى كتابة سؤال.
+              </p>
+            </div>
+
+            {/* Skills List */}
+            <div className="space-y-3">
+              {skills.map((skill) => (
+                <div
+                  key={skill.id}
+                  className={`p-4 rounded-xl border transition-all ${
+                    isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-slate-950/70 border-slate-800 shadow-md'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center border mt-0.5 ${
+                        skill.isEnabled
+                          ? isLight
+                            ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                            : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                          : 'bg-slate-800 text-slate-500 border-slate-700'
+                      }`}>
+                        <Layers className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-bold text-sm">{skill.name}</h3>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${
+                            skill.isEnabled
+                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                              : 'bg-slate-800 text-slate-400 border-slate-700'
+                          }`}>
+                            {skill.isEnabled ? 'مفعلة ON' : 'متوقفة OFF'}
+                          </span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-400 border border-slate-500/20">
+                            {skill.category}
+                          </span>
+                        </div>
+                        <p className={`text-xs mt-1.5 leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                          {skill.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* ON / OFF Switch */}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSkill(skill.id)}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                        skill.isEnabled ? 'bg-emerald-600' : isLight ? 'bg-slate-300' : 'bg-slate-700'
+                      }`}
+                      title={skill.isEnabled ? 'إيقاف المهارة (OFF)' : 'تشغيل المهارة (ON)'}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                          skill.isEnabled ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Manual Run Action & Execution Details */}
+                  <div className="mt-3.5 pt-3 border-t border-slate-700/40 flex flex-wrap items-center justify-between gap-2.5">
+                    <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                      <span>الاستدعاء التلقائي:</span>
+                      <span className={skill.isEnabled ? 'text-emerald-400 font-semibold' : 'text-slate-500'}>
+                        {skill.isEnabled ? 'مفعّل آليًا وفق استفسار المستخدم' : 'معطل (لن يتم تحميل التعليمات)'}
+                      </span>
+                    </div>
+
+                    {/* Manual Run Button */}
+                    <button
+                      type="button"
+                      onClick={() => setIsRangeTableOpen(true)}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      <span>تشغيل وفحص العملات العرضية الآن 🚀</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Strict Guarantee Banner */}
+            <div className={`p-3 rounded-xl border text-[11px] flex items-start gap-2 ${
+              isLight ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-slate-900/60 border-slate-800 text-slate-400'
+            }`}>
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <span>
+                <strong>تأكيد مطابقة النظام:</strong> المهارات المتوفرة مطابقة تمامًا للمحرك الفعلي. لا يدعي المساعد وجود أي مهارات إضافية غير منفذة، والمهارات المتوقفة (OFF) لا تُحمّل نهائيًا في سياق الطلب.
+              </span>
+            </div>
+
+            {/* Return to Chat Button */}
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setActiveTab('chat')}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Bot className="w-4 h-4" />
+                <span>العودة إلى شاشة المحادثة</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: CHAT VIEW */}
+        {activeTab === 'chat' && (
+          <>
+            {/* Quick-Action Bar for Technical Analysis & News */}
+            <div className={`p-2.5 border-b text-xs flex flex-wrap items-center justify-between gap-2 shrink-0 ${
+              isLight ? 'bg-slate-100/70 border-slate-200' : 'bg-slate-950/40 border-slate-800/80'
+            }`}>
+              {/* Searchable Symbol & Unified Timeframe Selector */}
+              <div className="flex items-center gap-1.5 flex-1 min-w-0 flex-wrap sm:flex-nowrap relative">
+                {/* Searchable Symbol Combobox */}
+                <div className="relative">
+                  <div className="flex items-center">
+                    <input
+                      type="text"
+                      value={selectedSymbol}
+                      onFocus={() => {
+                        setSymbolSearchQuery('');
+                        setIsSymbolDropdownOpen(true);
+                      }}
+                      onChange={(e) => {
+                        const val = e.target.value.toUpperCase();
+                        setSelectedSymbol(val);
+                        setSymbolSearchQuery(val);
+                        setIsSymbolDropdownOpen(true);
+                      }}
+                      placeholder="بحث عملة..."
+                      className={`w-28 sm:w-32 px-2.5 py-1 rounded-lg border font-mono text-xs uppercase focus:outline-hidden ${
+                        isValidSymbol
+                          ? isLight ? 'bg-white border-slate-300' : 'bg-slate-900 border-slate-700 text-emerald-400'
+                          : 'border-rose-500 bg-rose-500/10'
+                      }`}
+                    />
+                    <Search className="w-3 h-3 text-slate-400 absolute left-2 pointer-events-none" />
+                  </div>
+
+                  {/* Dropdown Suggestions */}
+                  {isSymbolDropdownOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-30"
+                        onClick={() => setIsSymbolDropdownOpen(false)}
+                      />
+                      <div className={`absolute top-full right-0 mt-1 w-48 rounded-xl border shadow-xl z-40 max-h-48 overflow-y-auto ${
+                        isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-slate-100'
+                      }`}>
+                        <div className="p-1.5 text-[10px] text-slate-400 border-b border-slate-700/50">
+                          اختر زوج معتمد (Binance Spot):
+                        </div>
+                        {filteredSymbols.map((item) => (
+                          <button
+                            key={item.symbol}
+                            type="button"
+                            onClick={() => {
+                              setSelectedSymbol(item.symbol);
+                              setIsSymbolDropdownOpen(false);
+                            }}
+                            className="w-full text-right px-2.5 py-1.5 text-xs hover:bg-emerald-500/20 hover:text-emerald-400 flex items-center justify-between font-mono cursor-pointer"
+                          >
+                            <span>{item.symbol}</span>
+                            <span className="text-[10px] text-slate-400">{item.baseAsset}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Unified Timeframe Selector */}
+                <select
+                  value={selectedInterval}
+                  onChange={(e) => setSelectedInterval(e.target.value)}
+                  className={`px-2 py-1 rounded-lg border text-xs focus:outline-hidden cursor-pointer ${
+                    isLight ? 'bg-white border-slate-300' : 'bg-slate-900 border-slate-700'
+                  }`}
+                >
+                  {UNIFIED_ASSISTANT_TIMEFRAMES.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.label} ({t.id})
+                    </option>
+                  ))}
+                </select>
+
+                {/* Run Tech Analysis Button */}
+                <button
+                  type="button"
+                  onClick={() => handleRunTechnicalAnalysis()}
+                  disabled={isAnalyzing}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium flex items-center gap-1 text-[11px] transition-colors cursor-pointer"
+                >
+                  <Activity className={`w-3 h-3 ${isAnalyzing ? 'animate-spin' : ''}`} />
+                  <span>{isAnalyzing ? 'جاري التحليل...' : 'تحليل فني فوري'}</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                {/* News Trigger */}
+                <button
+                  type="button"
+                  onClick={handleFetchCryptoNews}
+                  disabled={isFetchingNews}
+                  className={`px-2.5 py-1 rounded-lg border font-medium flex items-center gap-1 text-[11px] transition-colors cursor-pointer ${
+                    isLight
+                      ? 'bg-white border-slate-300 hover:bg-slate-50 text-slate-700'
+                      : 'bg-slate-900 border-slate-700 hover:bg-slate-800 text-slate-200'
+                  }`}
+                >
+                  <Globe className={`w-3 h-3 text-sky-400 ${isFetchingNews ? 'animate-spin' : ''}`} />
+                  <span>{isFetchingNews ? 'جلب الأخبار...' : 'أحدث الأخبار'}</span>
+                </button>
+
+                {/* Direct Skills Shortcut Tag */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('skills')}
+                  className={`px-2 py-1 rounded-lg border text-[10px] flex items-center gap-1 cursor-pointer transition-colors ${
+                    isLight ? 'bg-slate-200/60 border-slate-300 text-slate-700' : 'bg-slate-800/60 border-slate-700 text-slate-300'
+                  }`}
+                  title="الانتقال إلى قسم المهارات"
+                >
+                  <Layers className="w-3 h-3 text-emerald-400" />
+                  <span>مهارة العملات العرضية</span>
+                </button>
+              </div>
+            </div>
 
         {/* Message Thread Area */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -986,6 +1521,45 @@ export function AssistantModal({
                     )}
                   </div>
 
+                  {/* Assistant Message Tools: Copy Full, Copy Selection, Capture Image */}
+                  {!isUser && (
+                    <div className="flex items-center gap-2 mt-1.5 pt-1 text-[10px] text-slate-400">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyFullText(msg.content)}
+                        className={`px-2 py-0.5 rounded-md flex items-center gap-1 transition-colors cursor-pointer ${
+                          isLight ? 'hover:bg-slate-200 text-slate-700' : 'hover:bg-slate-800 text-slate-300'
+                        }`}
+                        title="نسخ الرد كاملًا"
+                      >
+                        <Copy className="w-3 h-3 text-emerald-400" />
+                        <span>نسخ كامل</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCopySelectedText(msg.content)}
+                        className={`px-2 py-0.5 rounded-md flex items-center gap-1 transition-colors cursor-pointer ${
+                          isLight ? 'hover:bg-slate-200 text-slate-700' : 'hover:bg-slate-800 text-slate-300'
+                        }`}
+                        title="نسخ الجزء المحدد (حدد نصًا ثم اضغط)"
+                      >
+                        <Scissors className="w-3 h-3 text-sky-400" />
+                        <span>نسخ المحدد</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCaptureMessageImage(msg)}
+                        className={`px-2 py-0.5 rounded-md flex items-center gap-1 transition-colors cursor-pointer ${
+                          isLight ? 'hover:bg-slate-200 text-slate-700' : 'hover:bg-slate-800 text-slate-300'
+                        }`}
+                        title="التقاط صورة واضحة للرد وحفظها"
+                      >
+                        <Camera className="w-3 h-3 text-amber-400" />
+                        <span>التقاط صورة</span>
+                      </button>
+                    </div>
+                  )}
+
                   {/* Message Timestamp */}
                   <span className="text-[9px] text-slate-500 mt-1 px-1">
                     {new Date(msg.timestamp).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
@@ -1008,16 +1582,32 @@ export function AssistantModal({
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Quick Suggestion Chips */}
+        {/* Quick Suggestion Chips (Flexible based on chosen coin and indicators) */}
         <div className={`px-3 py-2 border-t overflow-x-auto flex items-center gap-1.5 shrink-0 ${
           isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/50 border-slate-800'
         }`}>
           {[
-            { label: 'تحليل BTC', action: () => handleRunTechnicalAnalysis('BTCUSDT') },
-            { label: 'تحليل ETH', action: () => handleRunTechnicalAnalysis('ETHUSDT') },
-            { label: 'تحليل SOL', action: () => handleRunTechnicalAnalysis('SOLUSDT') },
-            { label: 'أخبار اليوم', action: handleFetchCryptoNews },
-            { label: 'شرح RSI', prompt: 'اشرح لي ببساطة كيف أستفيد من مؤشر RSI في تحديد القمم والقيعان؟' },
+            {
+              label: `تحليل ${selectedSymbol} الآن`,
+              action: () => handleRunTechnicalAnalysis(selectedSymbol),
+              isHighlighted: true,
+            },
+            {
+              label: `مؤشر RSI لـ ${selectedSymbol}`,
+              prompt: `حلل لي قراءة مؤشر القوة النسبية RSI(14) لعملة ${selectedSymbol} ومستويات التشبع.`,
+            },
+            {
+              label: `المتوسطات EMA لـ ${selectedSymbol}`,
+              prompt: `ما هي قراءات وتقاطعات المتوسطات المتحركة EMA 9 و 20 و 50 لعملة ${selectedSymbol}؟`,
+            },
+            {
+              label: `الدعم والمقاومة لـ ${selectedSymbol}`,
+              prompt: `حدد لي أهم مستويات الدعم والمقاومة ونقطة الارتكاز Pivot لعملة ${selectedSymbol} بإطار ${selectedInterval}.`,
+            },
+            {
+              label: 'أخبار اليوم',
+              action: handleFetchCryptoNews,
+            },
           ].map((chip, idx) => (
             <button
               key={idx}
@@ -1026,8 +1616,10 @@ export function AssistantModal({
                 if (chip.action) chip.action();
                 else if (chip.prompt) handleSendMessage(chip.prompt);
               }}
-              className={`px-2.5 py-1 rounded-full text-[10px] font-medium border shrink-0 transition-all ${
-                isLight
+              className={`px-2.5 py-1 rounded-full text-[10px] font-medium border shrink-0 transition-all cursor-pointer ${
+                chip.isHighlighted
+                  ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-600/30 font-semibold'
+                  : isLight
                   ? 'bg-white border-slate-300 hover:border-emerald-500 text-slate-700'
                   : 'bg-slate-900 border-slate-700 hover:border-emerald-500 text-slate-300'
               }`}
@@ -1239,7 +1831,9 @@ export function AssistantModal({
             المساعد مخصص للتحليل والاستشارة الفنية فقط ولا ينفذ أوامر تداول.
           </p>
         </div>
-      </div>
+      </>
+    )}
+  </div>
 
       {/* Link Attachment Modal */}
       {attachmentModalType === 'link' && (
