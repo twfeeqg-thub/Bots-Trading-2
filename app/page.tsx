@@ -12,13 +12,15 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Globe
+  Globe,
+  LayoutDashboard
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { PWAInstallButton } from '@/components/pwa/PWAInstallPrompt';
 import { SessionStatusBadge } from '@/components/markets/SessionStatusBadge';
 import { useTheme, ACCENT_PALETTES } from '@/components/theme/ThemeContext';
+import { DashboardView } from '@/components/dashboard/DashboardView';
 import { ScannerView } from '@/components/scanner/ScannerView';
 import { ChartsView } from '@/components/charts/ChartsView';
 import { TradeManagementView } from '@/components/trades/TradeManagementView';
@@ -30,7 +32,7 @@ import { AssistantModal } from '@/components/assistant/AssistantModal';
 export default function HomePage() {
   const { isLight, accent } = useTheme();
   const currentPalette = ACCENT_PALETTES[accent] || ACCENT_PALETTES.gold;
-  const [activeTab, setActiveTab] = useState<'scanner' | 'charts' | 'bots' | 'execution' | 'pnl' | 'markets'>('scanner');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'scanner' | 'charts' | 'bots' | 'execution' | 'pnl' | 'markets'>('dashboard');
   const [selectedAssetForChart, setSelectedAssetForChart] = useState<string | null>(null);
   const [selectedAssetForTrade, setSelectedAssetForTrade] = useState<{ symbol: string; price?: number } | null>(null);
   const [isPipelineExpanded, setIsPipelineExpanded] = useState<boolean>(false);
@@ -109,6 +111,26 @@ export default function HomePage() {
             <div className={`hidden md:flex items-center gap-1 p-1 rounded-xl border text-xs ${
               isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-950/80 border-slate-800'
             }`}>
+              <button
+                type="button"
+                onClick={() => setActiveTab('dashboard')}
+                style={{
+                  backgroundColor: activeTab === 'dashboard' ? currentPalette.primaryColor : undefined,
+                  color: activeTab === 'dashboard' ? '#09090b' : undefined,
+                  borderColor: activeTab === 'dashboard' ? currentPalette.primaryColor : undefined,
+                }}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  activeTab === 'dashboard'
+                    ? 'shadow-xs scale-[1.02]'
+                    : isLight
+                    ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+                }`}
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                <span>لوحة التحكم</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setActiveTab('scanner')}
@@ -369,7 +391,21 @@ export default function HomePage() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
           >
-            {activeTab === 'scanner' ? (
+            {activeTab === 'dashboard' ? (
+              <section id="dashboard-main-section">
+                <DashboardView
+                  onNavigateToScanner={() => setActiveTab('scanner')}
+                  onNavigateToCharts={(symbol) => {
+                    if (symbol) handleAssetSelect(symbol);
+                    else setActiveTab('charts');
+                  }}
+                  onNavigateToTrades={(symbol, price) => {
+                    if (symbol) handleAssetTradeSelect(symbol, price);
+                    else setActiveTab('execution');
+                  }}
+                />
+              </section>
+            ) : activeTab === 'scanner' ? (
               <section id="scanner-main-section">
                 <ScannerView
                   onSelectAssetForChart={handleAssetSelect}
@@ -408,10 +444,28 @@ export default function HomePage() {
       </main>
 
       {/* Fixed Bottom Navigation (Mobile-First compliant as specified in Section 9) */}
-      <nav id="bottom-navigation" className={`theme-section fixed bottom-0 left-0 right-0 z-50 backdrop-blur-md border-t px-2 py-1.5 md:hidden transition-colors ${
+      <nav id="bottom-navigation" className={`theme-section fixed bottom-0 left-0 right-0 z-50 backdrop-blur-md border-t px-1 sm:px-2 py-1.5 md:hidden transition-colors ${
         isLight ? 'bg-white/95 border-slate-200' : 'bg-slate-900/95 border-slate-800'
       }`}>
-        <div className="grid grid-cols-5 gap-0.5">
+        <div className="grid grid-cols-6 gap-0.5">
+          <button
+            id="nav-tab-dashboard"
+            type="button"
+            onClick={() => setActiveTab('dashboard')}
+            style={{
+              color: activeTab === 'dashboard' ? currentPalette.primaryColor : undefined,
+              backgroundColor: activeTab === 'dashboard' ? currentPalette.badgeBg : undefined,
+            }}
+            className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-xl text-[10px] font-medium transition-colors ${
+              activeTab === 'dashboard' 
+                ? 'font-bold'
+                : isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <LayoutDashboard className="w-4.5 h-4.5 mb-0.5" />
+            <span className="truncate">الرئيسية</span>
+          </button>
+
           <button
             id="nav-tab-scanner"
             type="button"
@@ -427,7 +481,7 @@ export default function HomePage() {
             }`}
           >
             <Radar className="w-4.5 h-4.5 mb-0.5" />
-            <span>الموجّه</span>
+            <span className="truncate">الموجّه</span>
           </button>
 
           <button
