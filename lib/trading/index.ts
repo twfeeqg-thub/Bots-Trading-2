@@ -1,9 +1,32 @@
-// Project Q — Binance Trading Layer (V1)
-// Clean export of types, signer, lock manager, client, and service.
+// Project Q — Binance Trading Service
+// Coordinates Mock Transport and Live/Testnet Trading Client
 
-export * from './types';
-export * from './binance-signer';
-export * from './order-lock-manager';
-export * from './binance-trading-client';
-export * from './mock-binance-transport';
-export * from './binance-trading-service';
+import { BinanceSigner } from './binance-signer';
+import { BinanceTradingClient, BinanceAccountInfo } from './binance-trading-client';
+
+export class BinanceTradingService {
+  private signer: BinanceSigner;
+  private client: BinanceTradingClient;
+
+  constructor() {
+    this.signer = new BinanceSigner();
+    this.client = new BinanceTradingClient(this.signer);
+  }
+
+  public isUsingMock(): boolean {
+    return this.signer.getConfigurationStatus().mode !== 'testnet';
+  }
+
+  public getTransport() {
+    return {
+      getAccountInformation: () => this.client.getAccountInformation(),
+      getServerTime: () => this.client.getServerTime(),
+    };
+  }
+
+  public getClient(): BinanceTradingClient {
+    return this.client;
+  }
+}
+
+export const sharedBinanceTradingService = new BinanceTradingService();

@@ -1,49 +1,25 @@
-// Project Q — Bot Engine: Types & DTOs
-// Defines engine configuration, status, and summary transfer objects.
+// Project Q — Bot Engine Types
 
-import {
-  BotType,
-  BotState,
-  BotConfig,
-  BotCycle,
-  BotTrade,
-} from '@/lib/bots/types';
-import { BotRepository } from '@/lib/persistence/types';
-import { CentralMarketDataStore } from '@/lib/market-data';
-import { BinanceTradingService } from '@/lib/trading';
-
-export interface BotEngineConfig {
-  repository?: BotRepository;
-  port?: number;
-  marketDataStore?: CentralMarketDataStore;
-  tradingService?: BinanceTradingService;
-}
+import { BotConfig, BotCycle, BotState, BotTrade, BotType } from '@/lib/bots/types';
 
 export interface BotSummaryDTO {
   id: string;
   name: string;
   type: BotType;
   symbol: string;
-  entryAmount: number;
   currentState: BotState;
-  enabled: boolean;
+  entryAmount: number;
   cycleNumber: number;
-  hasOpenCycle: boolean;
-  cycleStartedAt: number | null;
-  activeTradeId: string | null;
-  tradeStatus: string | null;
-  lastError: string | null;
   config: BotConfig;
-  currentCycle: BotCycle | null;
-  currentTrade: BotTrade | null;
+  currentCycle?: BotCycle;
+  currentTrade?: BotTrade;
+  lastActionTimestamp?: number;
 }
 
-export interface BotEngineStatus {
-  running: boolean;
-  storageType: 'in-memory' | 'supabase';
-  totalBots: number;
-  activeCyclesCount: number;
-  uptimeSeconds: number;
-  initializedAt: number;
-  storageHealthy: boolean;
+export interface BotStatusDTO {
+  engineRunning: boolean;
+  activeBotsCount: number;
+  totalBotsCount: number;
+  simulationMode: string;
+  timestamp: number;
 }

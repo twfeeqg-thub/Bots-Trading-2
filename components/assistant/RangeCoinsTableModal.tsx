@@ -603,7 +603,7 @@ export function RangeCoinsTableModal({
 
           <div className="flex items-center gap-3 text-[10px]">
             {lastUpdated && (
-              <span>آخر تحديث: {new Date(lastUpdated).toLocaleTimeString('ar-EG')}</span>
+              <span suppressHydrationWarning>آخر تحديث: {new Date(lastUpdated).toLocaleTimeString('ar-EG')}</span>
             )}
             {isCached && (
               <span className="px-1.5 py-0.5 rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20">

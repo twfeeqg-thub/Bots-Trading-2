@@ -942,7 +942,7 @@ export function BotManagementView({ onNavigateToTradeManager }: BotManagementVie
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">وقت البدء:</span>
-                      <span>
+                      <span suppressHydrationWarning>
                         {botCycle?.startedAt
                           ? new Date(botCycle.startedAt).toLocaleTimeString('ar-EG')
                           : '—'}
@@ -1052,7 +1052,7 @@ export function BotManagementView({ onNavigateToTradeManager }: BotManagementVie
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] font-mono text-slate-500 shrink-0">
+                        <span suppressHydrationWarning className="text-[10px] font-mono text-slate-500 shrink-0">
                           {new Date(h.timestamp).toLocaleTimeString('ar-EG')}
                         </span>
                       </div>
