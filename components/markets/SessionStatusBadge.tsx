@@ -1,86 +1,158 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Globe, Clock } from 'lucide-react';
-import { useTheme, ACCENT_PALETTES } from '@/components/theme/ThemeContext';
+import React, { useState, useEffect, useMemo, useSyncExternalStore } from 'react';
+import { Globe, Flame } from 'lucide-react';
+import { useTheme } from '@/components/theme/ThemeContext';
+import { getCurrentTimeUtc3, MARKET_SESSIONS, calculateSessionStatus } from '@/lib/markets/sessions';
 
 interface SessionStatusBadgeProps {
   onClick?: () => void;
+  className?: string;
 }
 
-export function SessionStatusBadge({ onClick }: SessionStatusBadgeProps) {
-  const { isLight, accent } = useTheme();
-  const palette = ACCENT_PALETTES[accent] || ACCENT_PALETTES.gold;
+const emptySubscribe = () => () => {};
 
-  // Calculate current session based on UTC+3
-  const [sessionInfo, setSessionInfo] = useState<{
-    nameAr: string;
-    city: string;
-    timeStr: string;
-    isActive: boolean;
-  }>({
-    nameAr: 'جلسة التداول',
-    city: 'الأسواق العالمية',
-    timeStr: '--:--',
-    isActive: true,
-  });
+function subscribeTime(callback: () => void) {
+  const timer = setInterval(callback, 10000);
+  return () => clearInterval(timer);
+}
 
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      // UTC+3 (Riyadh / Mecca / Moscow)
-      const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-      const utc3 = new Date(utc + 3600000 * 3);
-      const hours = utc3.getHours();
-      const minutes = utc3.getMinutes();
-      const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} (UTC+3)`;
+export function SessionStatusBadge({ onClick, className = '' }: SessionStatusBadgeProps) {
+  const { isLight } = useTheme();
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+  const timeTick = useSyncExternalStore(subscribeTime, () => Math.floor(Date.now() / 10000), () => 0);
 
-      let nameAr = 'السيولة الآسيوية';
-      let city = 'طوكيو / هونغ كونغ';
-      if (hours >= 10 && hours < 16) {
-        nameAr = 'السيولة الأوروبية';
-        city = 'لندن / فرانكفورت';
-      } else if (hours >= 16 && hours < 23) {
-        nameAr = 'السيولة الأمريكية';
-        city = 'نيويورك (ذروة النشاط)';
-      } else if (hours >= 23 || hours < 3) {
-        nameAr = 'إغلاق نيويورك / المحيط الهادئ';
-        city = 'سيدني / ولينغتون';
-      }
+  const utc3 = useMemo(() => {
+    return getCurrentTimeUtc3(mounted && timeTick > 0 ? new Date() : new Date(0));
+  }, [mounted, timeTick]);
 
-      setSessionInfo({
-        nameAr,
-        city,
-        timeStr,
-        isActive: true,
-      });
+  const badgeInfo = useMemo(() => {
+    // Check London + NY Overlap (Golden)
+    if (utc3.hours >= 16 && utc3.hours < 20) {
+      return {
+        label: 'تداخل لندن + نيويورك (ذروة السيولة)',
+        shortLabel: 'تداخل لندن + NY',
+        isPeak: true,
+        dotColor: 'bg-amber-400',
+        badgeClass: isLight 
+          ? 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100' 
+          : 'bg-amber-950/40 border-amber-500/40 text-amber-300 hover:bg-amber-900/40',
+      };
+    }
+
+    // Check Tokyo + London Overlap
+    if (utc3.hours >= 10 && utc3.hours < 11) {
+      return {
+        label: 'تداخل طوكيو + لندن',
+        shortLabel: 'تداخل طوكيو + لندن',
+        isPeak: false,
+        dotColor: 'bg-blue-400',
+        badgeClass: isLight 
+          ? 'bg-blue-50 border-blue-300 text-blue-900 hover:bg-blue-100' 
+          : 'bg-blue-950/40 border-blue-500/40 text-blue-300 hover:bg-blue-900/40',
+      };
+    }
+
+    // Single active sessions
+    const statuses = MARKET_SESSIONS.map((s) => calculateSessionStatus(s, utc3.totalMinutesOfDay));
+    const openNewYork = statuses.find((s) => s.session.id === 'newyork')?.isOpen;
+    const openLondon = statuses.find((s) => s.session.id === 'london')?.isOpen;
+    const openTokyo = statuses.find((s) => s.session.id === 'tokyo')?.isOpen;
+    const openSydney = statuses.find((s) => s.session.id === 'sydney')?.isOpen;
+
+    if (openNewYork) {
+      return {
+        label: 'الجلسة الأمريكية نشطة (نيويورك)',
+        shortLabel: 'جلسة نيويورك',
+        isPeak: false,
+        dotColor: 'bg-emerald-400',
+        badgeClass: isLight 
+          ? 'bg-emerald-50 border-emerald-300 text-emerald-900 hover:bg-emerald-100' 
+          : 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/40',
+      };
+    }
+
+    if (openLondon) {
+      return {
+        label: 'الجلسة الأوروبية نشطة (لندن)',
+        shortLabel: 'جلسة لندن',
+        isPeak: false,
+        dotColor: 'bg-blue-400',
+        badgeClass: isLight 
+          ? 'bg-blue-50 border-blue-300 text-blue-900 hover:bg-blue-100' 
+          : 'bg-blue-950/40 border-blue-500/40 text-blue-300 hover:bg-blue-900/40',
+      };
+    }
+
+    if (openTokyo) {
+      return {
+        label: 'الجلسة الآسيوية نشطة (طوكيو)',
+        shortLabel: 'جلسة طوكيو',
+        isPeak: false,
+        dotColor: 'bg-violet-400',
+        badgeClass: isLight 
+          ? 'bg-violet-50 border-violet-300 text-violet-900 hover:bg-violet-100' 
+          : 'bg-violet-950/40 border-violet-500/40 text-violet-300 hover:bg-violet-900/40',
+      };
+    }
+
+    if (openSydney) {
+      return {
+        label: 'جلسة سيدني نشطة (سيولة هادئة)',
+        shortLabel: 'جلسة سيدني',
+        isPeak: false,
+        dotColor: 'bg-sky-400',
+        badgeClass: isLight 
+          ? 'bg-sky-50 border-sky-300 text-sky-900 hover:bg-sky-100' 
+          : 'bg-sky-950/40 border-sky-500/40 text-sky-300 hover:bg-sky-900/40',
+      };
+    }
+
+    return {
+      label: 'الأسواق العالمية',
+      shortLabel: 'الأسواق',
+      isPeak: false,
+      dotColor: 'bg-slate-400',
+      badgeClass: isLight 
+        ? 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200' 
+        : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800',
     };
+  }, [utc3, isLight]);
 
-    updateTime();
-    const interval = setInterval(updateTime, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  if (!mounted) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        suppressHydrationWarning
+        title="انقر للانتقال لشاشة الأسواق وجلسات السيولة العالمية"
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all duration-200 cursor-pointer shadow-2xs select-none bg-slate-900 border-slate-700 text-slate-300 ${className}`}
+      >
+        <Globe className="w-3.5 h-3.5 opacity-80" />
+        <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse" />
+        <span className="hidden sm:inline font-semibold">الأسواق العالمية</span>
+        <span className="sm:hidden font-semibold">الأسواق</span>
+      </button>
+    );
+  }
 
   return (
     <button
       type="button"
       onClick={onClick}
       suppressHydrationWarning
-      className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs transition-all hover:scale-[1.02] cursor-pointer"
-      style={{
-        backgroundColor: palette.badgeBg,
-        borderColor: palette.badgeBorder,
-        color: isLight ? '#0f172a' : '#f8fafc',
-      }}
-      title={`الجلسة النشطة: ${sessionInfo.nameAr} - ${sessionInfo.city}`}
+      title="انقر للانتقال لشاشة الأسواق وجلسات السيولة العالمية"
+      className={`inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1 rounded-lg border text-xs font-medium transition-all duration-200 cursor-pointer shadow-2xs select-none shrink-0 ${badgeInfo.badgeClass} ${className}`}
     >
-      <Globe className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: '24s', color: palette.primaryColor }} />
-      <span className="font-semibold text-[11px]" style={{ color: palette.primaryColor }}>
-        {sessionInfo.nameAr}
-      </span>
-      <span suppressHydrationWarning className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
-        {sessionInfo.timeStr}
-      </span>
+      {badgeInfo.isPeak ? (
+        <Flame className="w-3.5 h-3.5 text-amber-500 animate-bounce shrink-0" />
+      ) : (
+        <Globe className="w-3.5 h-3.5 opacity-80 shrink-0" />
+      )}
+      <span className={`w-1.5 h-1.5 rounded-full ${badgeInfo.dotColor} animate-pulse shrink-0`} />
+      <span className="hidden md:inline font-semibold">{badgeInfo.label}</span>
+      <span className="hidden sm:inline md:hidden font-semibold">{badgeInfo.shortLabel}</span>
+      <span className="sm:hidden font-semibold text-[10px]">الأسواق</span>
     </button>
   );
 }

@@ -1561,7 +1561,7 @@ export function AssistantModal({
                   )}
 
                   {/* Message Timestamp */}
-                  <span suppressHydrationWarning className="text-[9px] text-slate-500 mt-1 px-1">
+                  <span className="text-[9px] text-slate-500 mt-1 px-1">
                     {new Date(msg.timestamp).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>

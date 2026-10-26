@@ -1,375 +1,380 @@
+// Scanner View Component for Project Q
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Radar,
-  Search,
-  TrendingUp,
-  LineChart,
-  ArrowUpRight,
-  Filter,
-  Zap,
+import React, { useState } from 'react';
+import { useScanner } from '@/hooks/use-scanner';
+import { 
+  SUPPORTED_PERIODS, 
+  TimePeriod 
+} from '@/lib/scanner/types';
+import { 
+  Search, 
+  ArrowUpDown, 
+  ArrowUp, 
+  ArrowDown, 
+  Bell, 
+  BellRing, 
+  Radio, 
+  Database,
+  ExternalLink,
   RefreshCw,
   Clock,
-  Sparkles,
-  Layers,
-  Activity,
-  ArrowRight
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react';
-import { useTheme, ACCENT_PALETTES } from '@/components/theme/ThemeContext';
-import { DEFAULT_EXECUTABLE_UNIVERSE } from '@/lib/scanner/universe';
-import { sharedMarketDataStore, MarketPriceRecord } from '@/lib/market-data';
 
 interface ScannerViewProps {
-  onSelectAssetForChart: (symbol: string) => void;
-  onSelectAssetForTrade: (symbol: string, currentPrice?: number) => void;
+  onSelectAssetForChart?: (symbol: string) => void;
+  onSelectAssetForTrade?: (symbol: string, currentPrice?: number) => void;
 }
 
-export interface SurgeItem {
-  symbol: string;
-  baseAsset: string;
-  price: number;
-  change24h: number;
-  surge1m: number;
-  surge5m: number;
-  volume24h: number;
-  surgeScore: number;
-  status: 'FRESH' | 'STALE';
-}
+export function ScannerView({ onSelectAssetForChart, onSelectAssetForTrade }: ScannerViewProps) {
+  const { state, setPeriod, setAlertThreshold, setSort, setFilter } = useScanner();
+  const [selectedAssetModal, setSelectedAssetModal] = useState<string | null>(null);
+  const [customThresholdInput, setCustomThresholdInput] = useState<string>(state.alertThreshold.toString());
 
-export function ScannerView({
-  onSelectAssetForChart,
-  onSelectAssetForTrade,
-}: ScannerViewProps) {
-  const { isLight, accent } = useTheme();
-  const palette = ACCENT_PALETTES[accent] || ACCENT_PALETTES.gold;
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTimeframe, setSelectedTimeframe] = useState<'1m' | '3m' | '5m' | '15m'>('5m');
-  const [minSurgeFilter, setMinSurgeFilter] = useState<number>(1.0);
-  const [items, setItems] = useState<SurgeItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [lastRefreshed, setLastRefreshed] = useState<string>('--:--');
-
-  // Generate / update scanner data from MarketData store and ticker changes
-  const refreshScanner = () => {
-    setIsLoading(true);
-    const universe = DEFAULT_EXECUTABLE_UNIVERSE.filter((u) => u.quoteAsset === 'USDT');
-    const scanned: SurgeItem[] = universe.map((coin, index) => {
-      const record = sharedMarketDataStore.getRecord(coin.symbol);
-      const basePrice = record?.price || 50 * (index + 1);
-      // Realistic surge simulator based on market state
-      const seedFactor = (coin.symbol.charCodeAt(0) + coin.symbol.charCodeAt(1) + Date.now() / 60000) % 10;
-      const surge1m = Number(((seedFactor - 3.5) * 0.45).toFixed(2));
-      const surge5m = Number(((seedFactor - 2) * 1.15).toFixed(2));
-      const change24h = record?.change24h ?? Number(((seedFactor - 4) * 2.3).toFixed(2));
-      const surgeScore = Math.max(0, Math.round(surge5m * 12 + surge1m * 18 + (change24h > 0 ? change24h * 5 : 0)));
-
-      return {
-        symbol: coin.symbol,
-        baseAsset: coin.baseAsset,
-        price: basePrice,
-        change24h,
-        surge1m,
-        surge5m,
-        volume24h: record?.volume24h || basePrice * 120000,
-        surgeScore,
-        status: record?.status === 'STALE' ? 'STALE' : 'FRESH',
-      };
-    });
-
-    // Sort by selected timeframe surge
-    scanned.sort((a, b) => b.surge5m - a.surge5m);
-    setItems(scanned);
-    setLastRefreshed(new Date().toLocaleTimeString('ar-EG'));
-    setIsLoading(false);
+  const handleThresholdSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const val = parseFloat(customThresholdInput);
+    if (!isNaN(val) && val > 0) {
+      setAlertThreshold(val);
+    }
   };
 
-  useEffect(() => {
-    refreshScanner();
-    const interval = setInterval(refreshScanner, 8000);
-    return () => clearInterval(interval);
-  }, [selectedTimeframe]);
+  const formatPrice = (price: number | null): string => {
+    if (price === null || isNaN(price)) return '—';
+    if (price >= 1000) {
+      return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    if (price >= 1) {
+      return price.toFixed(4);
+    }
+    return price.toFixed(6);
+  };
 
-  // Filter items
-  const filteredItems = useMemo(() => {
-    const q = searchQuery.trim().toUpperCase();
-    return items.filter((item) => {
-      const matchesSearch = !q || item.symbol.includes(q) || item.baseAsset.includes(q);
-      const matchesSurge = selectedTimeframe === '1m'
-        ? item.surge1m >= minSurgeFilter
-        : item.surge5m >= minSurgeFilter;
-      return matchesSearch && (minSurgeFilter === 0 || matchesSurge);
-    });
-  }, [items, searchQuery, minSurgeFilter, selectedTimeframe]);
+  const formatChange = (change: number | null): string => {
+    if (change === null || isNaN(change)) return '—';
+    const sign = change > 0 ? '+' : '';
+    return `${sign}${change.toFixed(2)}%`;
+  };
 
-  const topGainersCount = items.filter((i) => i.surge5m > 2).length;
+  const getSortIcon = (field: 'changePercent' | 'currentPrice' | 'asset') => {
+    if (state.sortField !== field) {
+      return <ArrowUpDown className="w-3.5 h-3.5 text-slate-500 opacity-60" />;
+    }
+    return state.sortDirection === 'ASC' ? (
+      <ArrowUp className="w-3.5 h-3.5 text-emerald-400" />
+    ) : (
+      <ArrowDown className="w-3.5 h-3.5 text-emerald-400" />
+    );
+  };
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Top Banner & Stats Overview */}
-      <div
-        className="p-4 sm:p-5 rounded-2xl border transition-colors shadow-md backdrop-blur-md"
-        style={{
-          backgroundColor: isLight ? palette.sectionBgLight : palette.sectionBgDark,
-          borderColor: isLight ? palette.sectionBorderLight : palette.sectionBorderDark,
-        }}
-      >
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div
-              className="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 shadow-xs"
-              style={{
-                backgroundColor: palette.badgeBg,
-                borderColor: palette.badgeBorder,
-                color: palette.primaryColor,
-              }}
+    <div id="scanner-view-container" className="space-y-4 max-w-full overflow-hidden">
+      {/* Top Controls Bar */}
+      <div id="scanner-controls-panel" className="theme-section border rounded-xl p-3 sm:p-5 space-y-4 max-w-full">
+        {/* Row 1: Connection & Periods */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          {/* Status Indicators */}
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <div 
+              id="ws-status-indicator" 
+              className="theme-card flex items-center gap-2 px-3 py-1.5 rounded-lg border font-medium"
             >
-              <Radar className="w-5 h-5 animate-spin" style={{ animationDuration: '16s' }} />
+              <span className={`w-2 h-2 rounded-full ${
+                state.connectionStatus === 'CONNECTED' 
+                  ? 'bg-emerald-400 animate-pulse' 
+                  : state.connectionStatus === 'RECONNECTING' || state.connectionStatus === 'CONNECTING'
+                  ? 'bg-amber-400 animate-ping'
+                  : 'bg-rose-400'
+              }`} />
+              <span className="text-slate-300">
+                {state.connectionStatus === 'CONNECTED' && 'بث السوق الحي (WebSocket مركزي)'}
+                {state.connectionStatus === 'RECONNECTING' && 'جاري إعادة الاتصال التلقائي...'}
+                {state.connectionStatus === 'CONNECTING' && 'جاري الاتصال بالسوق...'}
+                {state.connectionStatus === 'DISCONNECTED' && 'غير متصل بالسوق'}
+              </span>
+              <span className="text-[10px] text-slate-500 font-mono">!miniTicker@arr</span>
             </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2
-                  className="text-base sm:text-lg font-bold"
-                  style={{ color: isLight ? palette.headingColorLight : palette.headingColorDark }}
-                >
-                  بوت(٢) رصد الصعود الفوري (Crypto Surge Scanner)
-                </h2>
-                <span
-                  className="text-[10px] px-2 py-0.5 rounded-full font-mono border"
-                  style={{
-                    backgroundColor: palette.badgeBg,
-                    borderColor: palette.badgeBorder,
-                    color: palette.primaryColor,
-                  }}
-                >
-                  تحديث حي (Live Engine)
-                </span>
+
+            {state.activeAlertCount > 0 && (
+              <div 
+                id="active-alerts-indicator" 
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-medium"
+              >
+                <BellRing className="w-3.5 h-3.5 text-emerald-400 animate-bounce" />
+                <span>{state.activeAlertCount} أصول متجاوزة للنسبة</span>
               </div>
-              <p className={`text-xs mt-1 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                اكتشاف تسارع السيولة وانفجار السعر اللحظي على أزواج USDT بمنصة Binance Spot مع ربط فوري بالشارت والتداول الموحد.
-              </p>
-            </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={refreshScanner}
-              disabled={isLoading}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-                isLight ? 'bg-white hover:bg-slate-100 border-slate-300' : 'bg-slate-900 hover:bg-slate-800 border-slate-700'
-              }`}
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-              <span>تحديث الفحص</span>
-            </button>
-            <span suppressHydrationWarning className="text-[11px] font-mono text-slate-400">
-              آخر فحص: {lastRefreshed}
-            </span>
+          {/* Periods Selector (9 Closed Periods as per Spec Section 16) */}
+          <div id="period-selector" className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+            <span className="text-xs text-slate-400 font-medium ml-1 hidden sm:inline">الفترة:</span>
+            {SUPPORTED_PERIODS.map((p) => {
+              const isSelected = state.selectedPeriod === p;
+              return (
+                <button
+                  key={p}
+                  id={`period-btn-${p}`}
+                  type="button"
+                  onClick={() => setPeriod(p)}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                    isSelected
+                      ? 'bg-emerald-500 text-slate-950 shadow-sm shadow-emerald-500/20 font-bold'
+                      : 'bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/60'
+                  }`}
+                >
+                  {p}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Quick KPI stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 text-xs">
-          <div className="p-2.5 rounded-xl bg-slate-100/60 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80">
-            <span className="text-[10px] text-slate-400 block">إجمالي الأزواج المفحوصة</span>
-            <span className="text-sm font-bold font-mono text-slate-900 dark:text-slate-100">{items.length} زوج</span>
-          </div>
-          <div className="p-2.5 rounded-xl bg-slate-100/60 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80">
-            <span className="text-[10px] text-slate-400 block">إشارات الصعود النشطة (&gt;+2%)</span>
-            <span className="text-sm font-bold font-mono text-emerald-500">+{topGainersCount} عملات</span>
-          </div>
-          <div className="p-2.5 rounded-xl bg-slate-100/60 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80">
-            <span className="text-[10px] text-slate-400 block">النافذة الزمنية المراقبة</span>
-            <span className="text-sm font-bold font-mono" style={{ color: palette.primaryColor }}>
-              {selectedTimeframe}
+        {/* Row 2: Threshold & Search */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-800/80">
+          {/* Alert Threshold Selector */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
+              <Bell className="w-3.5 h-3.5 text-slate-400" />
+              نسبة التنبيه (Threshold):
             </span>
+
+            {/* Quick Presets */}
+            {[0.5, 1.0, 2.0, 3.0].map((val) => (
+              <button
+                key={val}
+                type="button"
+                onClick={() => {
+                  setAlertThreshold(val);
+                  setCustomThresholdInput(val.toString());
+                }}
+                className={`px-2 py-0.5 text-xs rounded border transition-colors ${
+                  state.alertThreshold === val
+                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-semibold'
+                    : 'bg-slate-800/50 border-slate-700/60 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                +{val}%
+              </button>
+            ))}
+
+            {/* Custom Input */}
+            <form onSubmit={handleThresholdSubmit} className="flex items-center gap-1">
+              <input
+                type="number"
+                step="0.1"
+                min="0.1"
+                max="50"
+                value={customThresholdInput}
+                onChange={(e) => setCustomThresholdInput(e.target.value)}
+                className="w-16 px-2 py-0.5 text-xs rounded bg-slate-950 border border-slate-700 text-slate-200 text-center focus:outline-none focus:border-emerald-500"
+              />
+              <button
+                type="submit"
+                className="px-2 py-0.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700"
+              >
+                تطبيق
+              </button>
+            </form>
           </div>
-          <div className="p-2.5 rounded-xl bg-slate-100/60 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80">
-            <span className="text-[10px] text-slate-400 block">قاعدة البيانات والتحقق</span>
-            <span className="text-sm font-bold font-mono text-slate-900 dark:text-slate-100">Binance Spot USDT</span>
+
+          {/* Search Filter */}
+          <div className="relative w-full sm:w-64">
+            <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="بحث في الأصول (مثال: BTC, SOL)..."
+              value={state.filterQuery}
+              onChange={(e) => setFilter(e.target.value)}
+              className="w-full pr-9 pl-3 py-1.5 text-xs rounded-lg bg-slate-950/80 border border-slate-800 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+            />
           </div>
         </div>
       </div>
 
-      {/* Control bar: Search + Timeframe + Min Surge */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 backdrop-blur-md">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="بحث عن العملة (مثال: BTC, SOL, PEPE)..."
-            className="w-full pr-9 pl-4 py-2 rounded-xl text-xs bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:outline-hidden focus:border-amber-500 text-slate-900 dark:text-slate-100 placeholder-slate-400"
-          />
-        </div>
-
-        {/* Timeframe selector */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-xs text-slate-400 flex items-center gap-1">
-            <Clock className="w-3.5 h-3.5" />
-            <span>الفاصل:</span>
-          </span>
-          {(['1m', '3m', '5m', '15m'] as const).map((tf) => (
-            <button
-              key={tf}
-              type="button"
-              onClick={() => setSelectedTimeframe(tf)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                selectedTimeframe === tf
-                  ? 'bg-amber-500 text-slate-950 shadow-xs'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
-            >
-              {tf}
-            </button>
-          ))}
-
-          {/* Min surge threshold filter */}
-          <select
-            value={minSurgeFilter}
-            onChange={(e) => setMinSurgeFilter(Number(e.target.value))}
-            className="px-2.5 py-1 rounded-lg text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 cursor-pointer"
-          >
-            <option value={0}>كل الصعود (≥ 0%)</option>
-            <option value={1}>صعود خفيف (≥ +1%)</option>
-            <option value={2}>صعود ملحوظ (≥ +2%)</option>
-            <option value={4}>انفجار قوي (≥ +4%)</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Surge Coins Table */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md overflow-hidden shadow-xs">
+      {/* Main Scanner Table (Spec Sections 29, 30, 31) */}
+      <div id="scanner-table-wrapper" className="theme-section bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-right text-xs">
-            <thead className="bg-slate-100/90 dark:bg-slate-950/90 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
-              <tr>
-                <th className="p-3 sm:p-3.5">الزوج والعملة</th>
-                <th className="p-3 sm:p-3.5">السعر الحالي</th>
-                <th className="p-3 sm:p-3.5">صعود 1 دقيقة</th>
-                <th className="p-3 sm:p-3.5">صعود 5 دقائق</th>
-                <th className="p-3 sm:p-3.5">تغير 24 ساعة</th>
-                <th className="p-3 sm:p-3.5">مؤشر الزخم</th>
-                <th className="p-3 sm:p-3.5 text-center">الإجراء المباشر</th>
+          <table className="w-full text-right border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-slate-800 bg-slate-900/90 text-slate-400">
+                <th className="py-3 px-3 sm:px-4 font-semibold w-12 text-center">#</th>
+                
+                <th className="py-3 px-3 sm:px-4 font-semibold">
+                  <button 
+                    type="button" 
+                    onClick={() => setSort('asset')}
+                    className="flex items-center gap-1.5 hover:text-slate-200"
+                  >
+                    <span>الأصل (Asset)</span>
+                    {getSortIcon('asset')}
+                  </button>
+                </th>
+
+                <th className="py-3 px-3 sm:px-4 font-semibold text-left">
+                  <button 
+                    type="button" 
+                    onClick={() => setSort('currentPrice')}
+                    className="flex items-center gap-1.5 ml-auto hover:text-slate-200"
+                  >
+                    <span>السعر الحالي (USDT)</span>
+                    {getSortIcon('currentPrice')}
+                  </button>
+                </th>
+
+                <th className="py-3 px-3 sm:px-4 font-semibold text-left">
+                  <div className="flex items-center gap-1 justify-end">
+                    <span>السعر المرجعي ({state.selectedPeriod})</span>
+                    <Clock className="w-3 h-3 text-slate-500" />
+                  </div>
+                </th>
+
+                <th className="py-3 px-3 sm:px-4 font-semibold text-left">
+                  <button 
+                    type="button" 
+                    onClick={() => setSort('changePercent')}
+                    className="flex items-center gap-1.5 ml-auto hover:text-slate-200"
+                  >
+                    <span>التغير % (Change)</span>
+                    {getSortIcon('changePercent')}
+                  </button>
+                </th>
+
+                <th className="py-3 px-3 sm:px-4 font-semibold text-center">
+                  <span>حالة التنبيه (Alert)</span>
+                </th>
+
+                <th className="py-3 px-3 sm:px-4 font-semibold text-center">
+                  <span>حالة البيانات</span>
+                </th>
+
+                <th className="py-3 px-3 sm:px-4 font-semibold text-center">
+                  <span>إجراء</span>
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60 font-mono">
-              {filteredItems.length === 0 ? (
+
+            <tbody className="divide-y divide-slate-800/60">
+              {state.rows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-10 text-center text-slate-400 font-sans">
-                    لا توجد عملات تطابق معايير الفحص المحددة حاليًا.
+                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Radio className="w-6 h-6 text-slate-500 animate-pulse" />
+                      <p>جاري استقبال بيانات السوق أو لا توجد نتائج مطابقة للبحث...</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((coin) => {
-                  const is1mUp = coin.surge1m >= 0;
-                  const is5mUp = coin.surge5m >= 0;
-                  const is24hUp = coin.change24h >= 0;
+                state.rows.map((row) => {
+                  const isPositive = row.changePercent !== null && row.changePercent > 0;
+                  const isNegative = row.changePercent !== null && row.changePercent < 0;
+                  const isAlerted = row.alertState === 'ALERTED';
 
                   return (
-                    <tr
-                      key={coin.symbol}
-                      className="hover:bg-slate-100/50 dark:hover:bg-slate-800/40 transition-colors"
+                    <tr 
+                      key={row.symbol} 
+                      className={`transition-colors hover:bg-slate-800/40 ${
+                        row.hasRecentAlert 
+                          ? 'bg-emerald-500/10 animate-pulse' 
+                          : isAlerted 
+                          ? 'bg-emerald-950/20' 
+                          : ''
+                      }`}
                     >
-                      {/* Symbol */}
-                      <td className="p-3 sm:p-3.5">
+                      {/* Rank */}
+                      <td className="py-3 px-3 sm:px-4 text-center font-mono font-medium text-slate-400">
+                        {row.rank}
+                      </td>
+
+                      {/* Asset */}
+                      <td className="py-3 px-3 sm:px-4 font-semibold text-slate-200">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm text-slate-900 dark:text-slate-100 font-sans">
-                            {coin.baseAsset}
-                          </span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                            USDT
-                          </span>
+                          <span className="font-bold text-slate-100">{row.asset}</span>
+                          <span className="text-[10px] text-slate-500 font-mono">/USDT</span>
                         </div>
                       </td>
 
                       {/* Current Price */}
-                      <td className="p-3 sm:p-3.5 font-bold text-slate-900 dark:text-slate-100">
-                        {coin.price > 1
-                          ? coin.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })
-                          : coin.price.toFixed(6)}
+                      <td className="py-3 px-3 sm:px-4 text-left font-mono font-medium text-slate-200">
+                        {formatPrice(row.currentPrice)}
                       </td>
 
-                      {/* 1m Surge */}
-                      <td className="p-3 sm:p-3.5">
-                        <span
-                          className={`font-semibold ${
-                            is1mUp ? 'text-emerald-500' : 'text-rose-500'
-                          }`}
-                        >
-                          {is1mUp ? '+' : ''}{coin.surge1m}%
-                        </span>
-                      </td>
-
-                      {/* 5m Surge */}
-                      <td className="p-3 sm:p-3.5">
-                        <span
-                          className={`font-bold px-2 py-0.5 rounded-lg text-xs ${
-                            coin.surge5m >= 2
-                              ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
-                              : is5mUp
-                              ? 'text-emerald-500'
-                              : 'text-rose-500'
-                          }`}
-                        >
-                          {is5mUp ? '+' : ''}{coin.surge5m}%
-                        </span>
-                      </td>
-
-                      {/* 24h Change */}
-                      <td className="p-3 sm:p-3.5">
-                        <span
-                          className={is24hUp ? 'text-emerald-500 font-medium' : 'text-rose-500 font-medium'}
-                        >
-                          {is24hUp ? '+' : ''}{coin.change24h}%
-                        </span>
-                      </td>
-
-                      {/* Score / Momentum */}
-                      <td className="p-3 sm:p-3.5">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-16 h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                            <div
-                              className="h-full rounded-full transition-all"
-                              style={{
-                                width: `${Math.min(100, coin.surgeScore)}%`,
-                                backgroundColor: coin.surgeScore > 60 ? '#10b981' : '#f59e0b',
-                              }}
-                            />
-                          </div>
-                          <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                            {coin.surgeScore}
+                      {/* Reference Price */}
+                      <td className="py-3 px-3 sm:px-4 text-left font-mono text-slate-400">
+                        {row.referencePrice !== null ? (
+                          formatPrice(row.referencePrice)
+                        ) : (
+                          <span className="text-slate-500 text-[11px]" title="لا يوجد تاريخ كافٍ لحساب المرجع بدقة">
+                            — (قيد البناء)
                           </span>
-                        </div>
+                        )}
                       </td>
 
-                      {/* Action buttons */}
-                      <td className="p-3 sm:p-3.5">
-                        <div className="flex items-center justify-center gap-1.5 font-sans">
-                          <button
-                            type="button"
-                            onClick={() => onSelectAssetForChart(coin.symbol)}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-medium transition-colors cursor-pointer"
-                            title="فتح شارت العملة"
-                          >
-                            <LineChart className="w-3.5 h-3.5" />
-                            <span>الشارت</span>
-                          </button>
+                      {/* Change % */}
+                      <td className="py-3 px-3 sm:px-4 text-left font-mono font-bold">
+                        {row.changePercent !== null ? (
+                          <span className={`px-2 py-0.5 rounded ${
+                            isPositive 
+                              ? 'text-emerald-400 bg-emerald-500/10' 
+                              : isNegative 
+                              ? 'text-rose-400 bg-rose-500/10' 
+                              : 'text-slate-300'
+                          }`}>
+                            {formatChange(row.changePercent)}
+                          </span>
+                        ) : (
+                          <span className="text-slate-500">—</span>
+                        )}
+                      </td>
 
-                          <button
-                            type="button"
-                            onClick={() => onSelectAssetForTrade(coin.symbol, coin.price)}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition-all shadow-xs cursor-pointer hover:scale-[1.03]"
-                            title="تداول مباشر / ربط بالبوت"
-                          >
-                            <TrendingUp className="w-3.5 h-3.5" />
-                            <span>تداول</span>
-                          </button>
-                        </div>
+                      {/* Alert State */}
+                      <td className="py-3 px-3 sm:px-4 text-center">
+                        {isAlerted ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                            <BellRing className="w-3 h-3 text-emerald-400" />
+                            تنبيه نشط ({formatChange(row.changePercent)})
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium text-slate-500 bg-slate-800/40">
+                            عادي
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Data Freshness */}
+                      <td className="py-3 px-3 sm:px-4 text-center">
+                        {row.dataStatus === 'FRESH' && (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                            حي (FRESH)
+                          </span>
+                        )}
+                        {row.dataStatus === 'STALE' && (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-amber-400" title="تجاوز 30 ثانية دون تحديث">
+                            <AlertTriangle className="w-3 h-3 text-amber-400" />
+                            متأخر (STALE)
+                          </span>
+                        )}
+                        {row.dataStatus === 'NO_DATA' && (
+                          <span className="inline-flex items-center text-[10px] text-slate-500">
+                            لا بيانات
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Integration Action */}
+                      <td className="py-3 px-3 sm:px-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedAssetModal(row.symbol)}
+                          className="px-2 py-1 text-[11px] rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 inline-flex items-center gap-1"
+                          title="عرض تفاصيل الأصل وسياق الربط"
+                        >
+                          <span>تفاصيل</span>
+                          <ExternalLink className="w-3 h-3 text-slate-400" />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -379,6 +384,81 @@ export function ScannerView({
           </table>
         </div>
       </div>
+
+      {/* Integration Context Modal (Spec Sections 36, 37: Preserving Future integration contracts) */}
+      {selectedAssetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-md overflow-hidden">
+          <div className="theme-modal-dialog w-full max-w-md max-h-[90dvh] flex flex-col rounded-2xl border p-4 sm:p-6 shadow-2xl space-y-4 overflow-hidden">
+            <div className="theme-modal-header shrink-0 flex items-center justify-between pb-3 border-b -mx-4 -mt-4 px-4 pt-4 sm:-mx-6 sm:-mt-6 sm:px-6 sm:pt-6 rounded-t-2xl">
+              <h3 className="theme-heading font-bold text-base">
+                سياق الأصل: {selectedAssetModal}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setSelectedAssetModal(null)}
+                className="theme-card text-xs px-2.5 py-1 rounded-lg border hover:scale-105 transition-all cursor-pointer"
+              >
+                إغلاق
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto min-h-0 space-y-3 text-xs pr-0.5">
+              <div className="theme-card p-3 rounded-xl border space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="opacity-75">الفترة الحالية:</span>
+                  <span className="font-mono font-semibold text-emerald-400">{state.selectedPeriod}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="opacity-75">حد التنبيه (Threshold):</span>
+                  <span className="font-mono font-semibold">+{state.alertThreshold}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="opacity-75">حالة الربط المعماري:</span>
+                  <span className="font-semibold text-emerald-400">Scanner Ready (Phase 1)</span>
+                </div>
+              </div>
+
+              <div className="theme-card p-3 rounded-xl border space-y-2 opacity-90">
+                <span className="font-semibold theme-heading block">نقاط التكامل المستقبلية (قواعد Q المغلقة):</span>
+                <p className="text-[11px] opacity-80 leading-relaxed">
+                  • <strong>Charts:</strong> تمرير سياق الرمز إلى الشارت عند بدء مرحلة Charts دون تكرار الاتصال.
+                  <br />
+                  • <strong>Execution (Spot/Convert):</strong> التنبيه هو إشارة فقط، والقرار النهائي بيد المستخدم دون شراء تلقائي.
+                </p>
+              </div>
+            </div>
+
+            <div className="shrink-0 flex items-center justify-end gap-2 pt-3 flex-wrap border-t border-slate-800/80">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onSelectAssetForTrade && selectedAssetModal) {
+                    const row = state.rows.find((r) => r.symbol === selectedAssetModal);
+                    onSelectAssetForTrade(selectedAssetModal, row?.currentPrice || undefined);
+                  }
+                  setSelectedAssetModal(null);
+                }}
+                className="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-md"
+              >
+                <span>إنشاء صفقة في Trade Manager</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (onSelectAssetForChart && selectedAssetModal) {
+                    onSelectAssetForChart(selectedAssetModal);
+                  }
+                  setSelectedAssetModal(null);
+                }}
+                className="theme-btn-primary px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+              >
+                عرض الشارت
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -22,6 +22,7 @@ interface KlineItem {
 function calculateEMA(prices: number[], period: number): number | undefined {
   if (prices.length < period) return undefined;
   const k = 2 / (period + 1);
+  // Start with simple moving average of first `period` items
   let ema = prices.slice(0, period).reduce((acc, p) => acc + p, 0) / period;
   for (let i = period; i < prices.length; i++) {
     ema = prices[i] * k + ema * (1 - k);
@@ -116,9 +117,6 @@ export async function GET(req: NextRequest) {
   const lows = klines.map((k) => k.low);
   const volumes = klines.map((k) => k.volume);
 
-  const lastCandle = klines[klines.length - 1];
-  const lastPrice = lastCandle.close;
-
   // Fetch true 24hr ticker data from Binance API (independent of klines interval)
   let ticker24h: { high24h: number; low24h: number; change24h: number; volume24h: number } | null = null;
   for (const host of BINANCE_HOSTS) {
@@ -172,6 +170,8 @@ export async function GET(req: NextRequest) {
   const pivotPoint = (prevCandle.high + prevCandle.low + prevCandle.close) / 3;
   const r1 = 2 * pivotPoint - prevCandle.low;
   const s1 = 2 * pivotPoint - prevCandle.high;
+  const r2 = pivotPoint + (prevCandle.high - prevCandle.low);
+  const s2 = pivotPoint - (prevCandle.high - prevCandle.low);
 
   // Volume analysis
   const avgVolume20 =
@@ -210,8 +210,8 @@ export async function GET(req: NextRequest) {
     trend,
     rsiCondition,
     pivotPoint: Number(pivotPoint.toFixed(4)),
-    supportLevels: [Number(s1.toFixed(4))],
-    resistanceLevels: [Number(r1.toFixed(4))],
+    supportLevels: [Number(s1.toFixed(4)), Number(s2.toFixed(4))],
+    resistanceLevels: [Number(r1.toFixed(4)), Number(r2.toFixed(4))],
     volumeStatus,
     source: 'Binance Spot Live API',
     updatedAt: new Date().toLocaleTimeString('ar-SA', { hour12: false }),

@@ -982,7 +982,7 @@ export function AnalyticsView() {
                   ) : (
                     events.map((evt) => (
                       <tr key={evt.eventId} className="hover:bg-slate-800/40">
-                        <td suppressHydrationWarning className="p-2 text-slate-400 whitespace-nowrap">
+                        <td className="p-2 text-slate-400 whitespace-nowrap">
                           {new Date(evt.timestamp).toLocaleTimeString('ar-EG')}
                         </td>
                         <td className="p-2">
